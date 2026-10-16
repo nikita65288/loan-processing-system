@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - changeSet:
+      id: saga-v4-001-business-retries
+      author: lps
+      sqlFile:
+        path: 001-saga-retries.sql
+        relativeToChangelogFile: true
+        splitStatements: true
+        stripComments: true

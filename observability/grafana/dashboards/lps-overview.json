@@ -1,0 +1,243 @@
+{
+  "uid": "lps-overview",
+  "title": "LPS Overview",
+  "tags": [
+    "LPS",
+    "LPS"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 40,
+  "version": 1,
+  "refresh": "15s",
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Healthy Spring Targets",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "lps-prometheus"
+      },
+      "description": "Metric from Spring Boot / Micrometer or Kafka Exporter. ",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(up{job=\"lps-spring\"})",
+          "legendFormat": "{{application}} {{status}} {{step}} {{cache}} {{result}} {{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": 2,
+      "title": "HTTP requests/sec by service",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "lps-prometheus"
+      },
+      "description": "Metric from Spring Boot / Micrometer or Kafka Exporter. ",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (application) (rate(http_server_requests_seconds_count[5m]))",
+          "legendFormat": "{{application}} {{status}} {{step}} {{cache}} {{result}} {{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      }
+    },
+    {
+      "id": 3,
+      "title": "HTTP 5xx/sec",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "lps-prometheus"
+      },
+      "description": "Metric from Spring Boot / Micrometer or Kafka Exporter. ",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (application) (rate(http_server_requests_seconds_count{status=~\"5..\"}[5m]))",
+          "legendFormat": "{{application}} {{status}} {{step}} {{cache}} {{result}} {{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      }
+    },
+    {
+      "id": 4,
+      "title": "HTTP p95 (s)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "lps-prometheus"
+      },
+      "description": "Metric from Spring Boot / Micrometer or Kafka Exporter. ",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le,application)(rate(http_server_requests_seconds_bucket[5m])))",
+          "legendFormat": "{{application}} {{status}} {{step}} {{cache}} {{result}} {{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      }
+    },
+    {
+      "id": 5,
+      "title": "JVM used heap",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "lps-prometheus"
+      },
+      "description": "Metric from Spring Boot / Micrometer or Kafka Exporter. ",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (application) (jvm_memory_used_bytes{area=\"heap\"})",
+          "legendFormat": "{{application}} {{status}} {{step}} {{cache}} {{result}} {{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      }
+    },
+    {
+      "id": 6,
+      "title": "Process CPU load",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "lps-prometheus"
+      },
+      "description": "Metric from Spring Boot / Micrometer or Kafka Exporter. ",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by (application) (process_cpu_usage)",
+          "legendFormat": "{{application}} {{status}} {{step}} {{cache}} {{result}} {{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      }
+    },
+    {
+      "id": 7,
+      "title": "Hikari active connections",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "lps-prometheus"
+      },
+      "description": "Metric from Spring Boot / Micrometer or Kafka Exporter. ",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (application) (hikaricp_connections_active)",
+          "legendFormat": "{{application}} {{status}} {{step}} {{cache}} {{result}} {{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 24
+      }
+    },
+    {
+      "id": 8,
+      "title": "Kafka consumer lag",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "lps-prometheus"
+      },
+      "description": "Metric from Spring Boot / Micrometer or Kafka Exporter. ",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (consumergroup) (kafka_consumergroup_lag)",
+          "legendFormat": "{{application}} {{status}} {{step}} {{cache}} {{result}} {{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 24
+      }
+    }
+  ],
+  "editable": false
+}

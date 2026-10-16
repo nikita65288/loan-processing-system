@@ -1,0 +1,11 @@
+databaseChangeLog:
+
+  - changeSet:
+      id: v1-001-create-loan-applications
+      author: nikita
+
+      sqlFile:
+        path: sql/001-create-loan-applications.sql
+        relativeToChangelogFile: true
+        splitStatements: true
+        stripComments: true

@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - changeSet:
+      id: saga-v6-001-disbursement-notification
+      author: lps
+      sqlFile:
+        path: 001-disbursement-notification.sql
+        relativeToChangelogFile: true
+        splitStatements: true
+        stripComments: true

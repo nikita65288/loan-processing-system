@@ -1,0 +1,186 @@
+{
+  "uid": "lps-redis-business",
+  "title": "LPS Redis & Business Services",
+  "tags": [
+    "LPS",
+    "LPS"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 40,
+  "version": 1,
+  "refresh": "15s",
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Cache lookups/sec by outcome",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "lps-prometheus"
+      },
+      "description": "Metric from Spring Boot / Micrometer or Kafka Exporter. No data until first matching operation.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by(cache,outcome)(rate(lps_cache_lookup_total[5m]))",
+          "legendFormat": "{{application}} {{status}} {{step}} {{cache}} {{result}} {{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": 2,
+      "title": "Cache hit ratio",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "lps-prometheus"
+      },
+      "description": "Metric from Spring Boot / Micrometer or Kafka Exporter. No data until first matching operation.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by(cache)(rate(lps_cache_lookup_total{outcome=\"hit\"}[5m])) / clamp_min(sum by(cache)(rate(lps_cache_lookup_total{outcome=~\"hit|miss\"}[5m])),1e-12)",
+          "legendFormat": "{{application}} {{status}} {{step}} {{cache}} {{result}} {{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      }
+    },
+    {
+      "id": 3,
+      "title": "Cache read errors/sec",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "lps-prometheus"
+      },
+      "description": "Metric from Spring Boot / Micrometer or Kafka Exporter. No data until first matching operation.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by(cache)(rate(lps_cache_lookup_total{outcome=\"error\"}[5m]))",
+          "legendFormat": "{{application}} {{status}} {{step}} {{cache}} {{result}} {{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      }
+    },
+    {
+      "id": 4,
+      "title": "Disbursement outcomes/sec",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "lps-prometheus"
+      },
+      "description": "Metric from Spring Boot / Micrometer or Kafka Exporter. No data until first matching operation.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by(result)(rate(lps_disbursement_outcomes_total[5m]))",
+          "legendFormat": "{{application}} {{status}} {{step}} {{cache}} {{result}} {{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      }
+    },
+    {
+      "id": 5,
+      "title": "Notification outcomes/sec",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "lps-prometheus"
+      },
+      "description": "Metric from Spring Boot / Micrometer or Kafka Exporter. No data until first matching operation.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by(result)(rate(lps_notification_outcomes_total[5m]))",
+          "legendFormat": "{{application}} {{status}} {{step}} {{cache}} {{result}} {{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      }
+    },
+    {
+      "id": 6,
+      "title": "PostgreSQL cache fallback/sec",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "targets": [
+        {
+          "expr": "sum by(cache)(rate(lps_cache_fallback_total[5m]))",
+          "legendFormat": "{{cache}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        }
+      }
+    }
+  ],
+  "editable": false
+}

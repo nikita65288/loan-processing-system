@@ -1,0 +1,11 @@
+databaseChangeLog:
+
+  - changeSet:
+      id: v3-001-outbox-reliability
+      author: nikita
+
+      sqlFile:
+        path: sql/001-outbox-reliability.sql
+        relativeToChangelogFile: true
+        splitStatements: true
+        stripComments: true

@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - changeSet:
+      id: saga-v5-001-failure-paths
+      author: lps
+      sqlFile:
+        path: 001-saga-failure-paths.sql
+        relativeToChangelogFile: true
+        splitStatements: true
+        stripComments: true

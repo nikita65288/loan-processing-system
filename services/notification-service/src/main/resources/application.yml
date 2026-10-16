@@ -1,0 +1,70 @@
+spring:
+  application:
+    name: notification-service
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://127.0.0.1:5432/lps}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    hikari:
+      connection-init-sql: CREATE SCHEMA IF NOT EXISTS notification
+      connection-timeout: 5000
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        default_schema: notification
+        jdbc:
+          time_zone: UTC
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+    default-schema: notification
+    liquibase-schema: notification
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      acks: all
+lps:
+  kafka:
+    consumer:
+      enabled: ${LPS_KAFKA_CONSUMER_ENABLED:true}
+  outbox:
+    polling-interval-ms: ${LPS_NOTIFICATION_OUTBOX_POLLING_INTERVAL_MS:1000}
+    batch-size: 20
+    max-retries: 10
+    claim-timeout-seconds: 600
+server:
+  port: ${SERVER_PORT:8086}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+  tracing:
+    sampling:
+      probability: ${LPS_TRACING_SAMPLING:1.0}
+  otlp:
+    tracing:
+      endpoint: ${LPS_OTLP_ENDPOINT:http://localhost:4318/v1/traces}
+      connect-timeout: 1s
+      read-timeout: 2s
+
+# JSON files are optional for runtime correctness: Logstash tails them only when enabled.
+logging:
+  file:
+    name: ${LPS_LOG_DIR:logs}/${spring.application.name}.json.log
+  structured:
+    format:
+      file: ecs
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 3
+      total-size-cap: 60MB

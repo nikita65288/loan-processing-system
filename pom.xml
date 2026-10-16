@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.5.16</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.lps</groupId>
+    <artifactId>lps</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <name>loan-processing-system</name>
+    <description>Event-driven loan processing platform with durable workflow orchestration</description>
+
+    <modules>
+        <module>lps-contracts</module>
+        <module>services/loan-application-service</module>
+        <module>services/credit-scoring-service</module>
+        <module>services/bureau-service</module>
+        <module>services/decision-service</module>
+        <module>services/saga-orchestrator-service</module>
+        <module>services/loan-disbursement-service</module>
+        <module>services/notification-service</module>
+    </modules>
+
+    <properties>
+        <java.version>17</java.version>
+    </properties>
+</project>

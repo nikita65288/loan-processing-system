@@ -1,0 +1,98 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lps-k8s-prometheus
+  namespace: lps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: lps-k8s-prometheus
+  template:
+    metadata:
+      labels:
+        app: lps-k8s-prometheus
+    spec:
+      containers:
+      - name: prometheus
+        image: prom/prometheus:v3.5.0
+        ports:
+        - containerPort: 9090
+          name: http
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 384Mi
+        volumeMounts:
+        - name: config
+          mountPath: /etc/prometheus/prometheus.yml
+          subPath: prometheus.yml
+          readOnly: true
+        args:
+        - --config.file=/etc/prometheus/prometheus.yml
+        - --storage.tsdb.retention.time=1d
+        - --storage.tsdb.path=/prometheus
+      volumes:
+      - name: config
+        configMap:
+          name: lps-k8s-prometheus-config
+      serviceAccountName: lps-k8s-prometheus
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lps-k8s-grafana
+  namespace: lps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: lps-k8s-grafana
+  template:
+    metadata:
+      labels:
+        app: lps-k8s-grafana
+    spec:
+      containers:
+      - name: grafana
+        image: grafana/grafana:12.1.0
+        ports:
+        - containerPort: 3000
+          name: http
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 384Mi
+        volumeMounts:
+        - name: datasources
+          mountPath: /etc/grafana/provisioning/datasources
+          readOnly: true
+        - name: providers
+          mountPath: /etc/grafana/provisioning/dashboards
+          readOnly: true
+        - name: dashboards
+          mountPath: /var/lib/grafana/dashboards
+          readOnly: true
+        env:
+        - name: GF_SECURITY_ADMIN_USER
+          value: admin
+        - name: GF_SECURITY_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: lps-grafana
+              key: GF_SECURITY_ADMIN_PASSWORD
+      volumes:
+      - name: datasources
+        configMap:
+          name: lps-k8s-grafana-datasources
+      - name: providers
+        configMap:
+          name: lps-k8s-grafana-providers
+      - name: dashboards
+        configMap:
+          name: lps-k8s-grafana-dashboards

@@ -1,0 +1,11 @@
+databaseChangeLog:
+
+  - changeSet:
+      id: v2-001-create-outbox-events
+      author: nikita
+
+      sqlFile:
+        path: sql/001-create-outbox-events.sql
+        relativeToChangelogFile: true
+        splitStatements: true
+        stripComments: true

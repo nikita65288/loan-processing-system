@@ -1,0 +1,215 @@
+{
+  "uid": "lps-kafka-outbox",
+  "title": "LPS Kafka & Outbox",
+  "tags": [
+    "LPS",
+    "LPS"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 40,
+  "version": 1,
+  "refresh": "15s",
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Consumer lag by group",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "lps-prometheus"
+      },
+      "description": "Metric from Spring Boot / Micrometer or Kafka Exporter. ",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (consumergroup) (kafka_consumergroup_lag)",
+          "legendFormat": "{{application}} {{status}} {{step}} {{cache}} {{result}} {{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": 2,
+      "title": "Outbox states (NEW, CLAIMED, FAILED)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "lps-prometheus"
+      },
+      "description": "Metric from Spring Boot / Micrometer or Kafka Exporter. No data until first matching operation.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (application,status)(lps_outbox_records)",
+          "legendFormat": "{{application}} {{status}} {{step}} {{cache}} {{result}} {{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      }
+    },
+    {
+      "id": 3,
+      "title": "Oldest pending event age (seconds)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "lps-prometheus"
+      },
+      "description": "Metric from Spring Boot / Micrometer or Kafka Exporter. No data until first matching operation.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by (application)(lps_outbox_oldest_pending_seconds)",
+          "legendFormat": "{{application}} {{status}} {{step}} {{cache}} {{result}} {{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      }
+    },
+    {
+      "id": 4,
+      "title": "Durably published events/sec",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "lps-prometheus"
+      },
+      "description": "Metric from Spring Boot / Micrometer or Kafka Exporter. No data until first matching operation.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by(application)(rate(lps_outbox_published_total[5m]))",
+          "legendFormat": "{{application}} {{status}} {{step}} {{cache}} {{result}} {{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      }
+    },
+    {
+      "id": 5,
+      "title": "Failed publication attempts/sec",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "lps-prometheus"
+      },
+      "description": "Metric from Spring Boot / Micrometer or Kafka Exporter. No data until first matching operation.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by(application)(rate(lps_outbox_publication_failed_total[5m]))",
+          "legendFormat": "{{application}} {{status}} {{step}} {{cache}} {{result}} {{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      }
+    },
+    {
+      "id": 6,
+      "title": "Outbox publication mean duration (seconds)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "lps-prometheus"
+      },
+      "description": "Metric from Spring Boot / Micrometer or Kafka Exporter. No data until first matching operation.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by(application)(rate(lps_outbox_publication_duration_seconds_sum[5m])) / clamp_min(sum by(application)(rate(lps_outbox_publication_duration_seconds_count[5m])), 1e-12)",
+          "legendFormat": "{{application}} {{status}} {{step}} {{cache}} {{result}} {{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      }
+    },
+    {
+      "id": 7,
+      "title": "Stale claims recovered/sec",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "lps-prometheus"
+      },
+      "description": "Metric from Spring Boot / Micrometer or Kafka Exporter. No data until first matching operation.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by(application)(rate(lps_outbox_stale_claim_recovered_total[5m]))",
+          "legendFormat": "{{application}} {{status}} {{step}} {{cache}} {{result}} {{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 24
+      }
+    }
+  ],
+  "editable": false
+}

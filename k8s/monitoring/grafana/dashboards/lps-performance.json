@@ -1,0 +1,342 @@
+{
+  "uid": "lps-performance",
+  "title": "LPS LPS — Performance",
+  "tags": [
+    "LPS",
+    "LPS"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 40,
+  "version": 1,
+  "refresh": "15s",
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Accepted POST/s",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "lps-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(http_server_requests_seconds_count{application=\"loan-application-service\",method=\"POST\",uri=\"/applications\",status=\"201\"}[1m]))",
+          "legendFormat": "{{application}} {{status}} {{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        }
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Completed Saga/s",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "lps-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(lps_saga_completed_total[1m]))",
+          "legendFormat": "{{application}} {{status}} {{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        }
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "POST p99 (s)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "lps-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.99,sum by(le)(rate(http_server_requests_seconds_bucket{application=\"loan-application-service\",method=\"POST\",uri=\"/applications\"}[5m])))",
+          "legendFormat": "{{application}} {{status}} {{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 7
+      }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Saga duration p99 (s)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "lps-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.99,sum by(le)(rate(lps_saga_duration_seconds_bucket{terminal=\"completed\"}[5m])))",
+          "legendFormat": "{{application}} {{status}} {{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 7
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Kafka lag",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "lps-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by(consumergroup)(kafka_consumergroup_lag)",
+          "legendFormat": "{{application}} {{status}} {{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 14
+      }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Pending outbox",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "lps-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by(application,status)(lps_outbox_records{status=~\"NEW|CLAIMED\"})",
+          "legendFormat": "{{application}} {{status}} {{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 14
+      }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Saga active",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "lps-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(lps_saga_active)",
+          "legendFormat": "{{application}} {{status}} {{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 21
+      }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Hikari pending",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "lps-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by(application)(hikaricp_connections_pending)",
+          "legendFormat": "{{application}} {{status}} {{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 21
+      }
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Hikari active",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "lps-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by(application)(hikaricp_connections_active)",
+          "legendFormat": "{{application}} {{status}} {{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 28
+      }
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "JVM heap used",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "lps-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by(application)(jvm_memory_used_bytes{area=\"heap\"})",
+          "legendFormat": "{{application}} {{status}} {{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        }
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 28
+      }
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Process CPU usage",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "lps-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by(application)(process_cpu_usage)",
+          "legendFormat": "{{application}} {{status}} {{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        }
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 35
+      }
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Kafka/outbox failures/s",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "lps-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by(application)(rate(lps_outbox_publication_failed_total[5m]))",
+          "legendFormat": "{{application}} {{status}} {{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        }
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 35
+      }
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: lps
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - deployments/loan-application-service.yaml
+  - deployments/credit-scoring-service.yaml
+  - deployments/bureau-service.yaml
+  - deployments/decision-service.yaml
+  - deployments/saga-orchestrator-service.yaml
+  - deployments/loan-disbursement-service.yaml
+  - deployments/notification-service.yaml
+  - services/loan-application-service.yaml
+  - services/saga-orchestrator-service.yaml

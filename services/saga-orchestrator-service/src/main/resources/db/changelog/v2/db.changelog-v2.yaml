@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - changeSet:
+      id: saga-v2-001-happy-path-context
+      author: lps
+      sqlFile:
+        path: 001-add-happy-path-context.sql
+        relativeToChangelogFile: true
+        splitStatements: true
+        stripComments: true

@@ -1,0 +1,20 @@
+databaseChangeLog:
+  - changeSet:
+      id: stage13-init
+      author: lps
+      changes:
+        - sqlFile:
+            path: db/changelog/001-init.sql
+            splitStatements: true
+
+  # Nullable trace context: old pending Outbox rows remain publishable.
+  - changeSet:
+      id: stage16-outbox-traceparent
+      author: lps
+      changes:
+        - addColumn:
+            tableName: outbox_events
+            columns:
+              - column:
+                  name: traceparent
+                  type: varchar(55)

@@ -1,0 +1,271 @@
+{
+  "uid": "lps-saga",
+  "title": "LPS Saga Workflow",
+  "tags": [
+    "LPS",
+    "LPS"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 40,
+  "version": 1,
+  "refresh": "15s",
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Saga started/sec",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "lps-prometheus"
+      },
+      "description": "Metric from Spring Boot / Micrometer or Kafka Exporter. No data until first matching operation.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(lps_saga_started_total[5m]))",
+          "legendFormat": "{{application}} {{status}} {{step}} {{cache}} {{result}} {{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": 2,
+      "title": "Saga completed/sec by decision",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "lps-prometheus"
+      },
+      "description": "Metric from Spring Boot / Micrometer or Kafka Exporter. No data until first matching operation.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (result) (rate(lps_saga_completed_total[5m]))",
+          "legendFormat": "{{application}} {{status}} {{step}} {{cache}} {{result}} {{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      }
+    },
+    {
+      "id": 3,
+      "title": "Saga technical failures/sec",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "lps-prometheus"
+      },
+      "description": "Metric from Spring Boot / Micrometer or Kafka Exporter. No data until first matching operation.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (step,category) (rate(lps_saga_failed_total[5m]))",
+          "legendFormat": "{{application}} {{status}} {{step}} {{cache}} {{result}} {{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      }
+    },
+    {
+      "id": 4,
+      "title": "Saga currently active",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "lps-prometheus"
+      },
+      "description": "Metric from Spring Boot / Micrometer or Kafka Exporter. No data until first matching operation.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max(lps_saga_active)",
+          "legendFormat": "{{application}} {{status}} {{step}} {{cache}} {{result}} {{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      }
+    },
+    {
+      "id": 5,
+      "title": "Saga duration p95 (seconds)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "lps-prometheus"
+      },
+      "description": "Metric from Spring Boot / Micrometer or Kafka Exporter. No data until first matching operation.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95,sum by(le,terminal)(rate(lps_saga_duration_seconds_bucket[5m])))",
+          "legendFormat": "{{application}} {{status}} {{step}} {{cache}} {{result}} {{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      }
+    },
+    {
+      "id": 6,
+      "title": "Business retries/sec by step",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "lps-prometheus"
+      },
+      "description": "Metric from Spring Boot / Micrometer or Kafka Exporter. No data until first matching operation.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (step) (rate(lps_saga_business_retries_total[5m]))",
+          "legendFormat": "{{application}} {{status}} {{step}} {{cache}} {{result}} {{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      }
+    },
+    {
+      "id": 7,
+      "title": "Step timeouts/sec",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "lps-prometheus"
+      },
+      "description": "Metric from Spring Boot / Micrometer or Kafka Exporter. No data until first matching operation.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (step) (rate(lps_saga_timeouts_total[5m]))",
+          "legendFormat": "{{application}} {{status}} {{step}} {{cache}} {{result}} {{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 24
+      }
+    },
+    {
+      "id": 8,
+      "title": "Reconciliation cases currently pending",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "lps-prometheus"
+      },
+      "description": "Metric from Spring Boot / Micrometer or Kafka Exporter. No data until first matching operation.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max(lps_saga_reconciliation_pending)",
+          "legendFormat": "{{application}} {{status}} {{step}} {{cache}} {{result}} {{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 24
+      }
+    },
+    {
+      "id": 9,
+      "title": "Inbox duplicates/sec",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "lps-prometheus"
+      },
+      "description": "Metric from Spring Boot / Micrometer or Kafka Exporter. No data until first matching operation.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(lps_inbox_messages_total{outcome=\"duplicate\"}[5m]))",
+          "legendFormat": "{{application}} {{status}} {{step}} {{cache}} {{result}} {{consumergroup}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 32
+      }
+    }
+  ],
+  "editable": false
+}

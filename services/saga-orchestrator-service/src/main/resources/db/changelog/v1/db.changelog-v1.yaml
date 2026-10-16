@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - changeSet:
+      id: saga-v1-001-initial-schema
+      author: nikita
+      sqlFile:
+        path: 001-create-saga-tables.sql
+        relativeToChangelogFile: true
+        splitStatements: true
+        stripComments: true

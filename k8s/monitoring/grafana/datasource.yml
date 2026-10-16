@@ -1,0 +1,9 @@
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    uid: lps-prometheus
+    type: prometheus
+    access: proxy
+    url: http://lps-k8s-prometheus.lps.svc.cluster.local:9090
+    isDefault: true
+    editable: false

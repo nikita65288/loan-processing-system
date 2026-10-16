@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lps-runtime
+  namespace: lps
+data:
+  SERVER_PORT: '8080'
+  SERVER_SHUTDOWN: graceful
+  SPRING_LIFECYCLE_TIMEOUT_PER_SHUTDOWN_PHASE: 25s
+  MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: 'true'
+  SPRING_KAFKA_BOOTSTRAP_SERVERS: host.docker.internal:19092
+  LPS_OTLP_ENDPOINT: http://host.docker.internal:4318/v1/traces
+  LOGGING_STRUCTURED_FORMAT_CONSOLE: ecs
+  LPS_LOG_DIR: /tmp/lps-logs
+  SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: '3'

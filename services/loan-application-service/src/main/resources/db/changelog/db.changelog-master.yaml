@@ -1,0 +1,21 @@
+databaseChangeLog:
+
+  - include:
+      file: db/changelog/v1/db.changelog-v1.yaml
+  - include:
+      file: db/changelog/v2/db.changelog-v2.yaml
+
+  - include:
+      file: db/changelog/v3/db.changelog-v3.yaml
+
+  # Nullable trace context: old pending Outbox rows remain publishable.
+  - changeSet:
+      id: stage16-outbox-traceparent
+      author: lps
+      changes:
+        - addColumn:
+            tableName: outbox_events
+            columns:
+              - column:
+                  name: traceparent
+                  type: varchar(55)

@@ -1,0 +1,38 @@
+# Builds and IDE files
+**/target/
+.mvn/timing.properties
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Local settings / credentials
+.env
+.env.*
+!.env.example
+/k8s/local/secrets.env
+/k8s/local/grafana-secrets.env
+
+# Generated runtime data
+**/logs/*
+!**/logs/.gitkeep
+*.log
+*.json.log*
+/docker/artifacts/*
+!/docker/artifacts/.gitkeep
+/load-tests/results/*
+!/load-tests/results/.gitkeep
+node_modules/
+
+# Diagnostics, archives and database backups
+*.zip
+*.bak
+*.dump
+*.backup
+*.sql.gz
+*.swp
+*.swo

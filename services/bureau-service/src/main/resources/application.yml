@@ -1,0 +1,49 @@
+spring:
+  application:
+    name: bureau-service
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+server:
+  port: ${SERVER_PORT:8082}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+  tracing:
+    sampling:
+      probability: ${LPS_TRACING_SAMPLING:1.0}
+  otlp:
+    tracing:
+      endpoint: ${LPS_OTLP_ENDPOINT:http://localhost:4318/v1/traces}
+      connect-timeout: 1s
+      read-timeout: 2s
+lps:
+  # Evaluated only with the failure-simulation Spring profile.
+  stub:
+    failure-mode: ${LPS_STUB_FAILURE_MODE:NORMAL}
+  kafka:
+    consumer:
+      fail-on-event: ${LPS_KAFKA_CONSUMER_FAIL_ON_EVENT:false}
+
+# JSON files are optional for runtime correctness: Logstash tails them only when enabled.
+logging:
+  file:
+    name: ${LPS_LOG_DIR:logs}/${spring.application.name}.json.log
+  structured:
+    format:
+      file: ecs
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 3
+      total-size-cap: 60MB

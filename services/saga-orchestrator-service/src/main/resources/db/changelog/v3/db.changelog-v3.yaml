@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - changeSet:
+      id: saga-v3-001-processed-messages
+      author: lps
+      sqlFile:
+        path: 001-create-processed-messages.sql
+        relativeToChangelogFile: true
+        splitStatements: true
+        stripComments: true

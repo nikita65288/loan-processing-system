@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: lps
+resources:
+  - rbac.yaml
+  - deployments.yaml
+  - services.yaml
+configMapGenerator:
+  - name: lps-k8s-prometheus-config
+    files:
+      - prometheus.yml
+  - name: lps-k8s-grafana-datasources
+    files:
+      - datasource.yml=grafana/datasource.yml
+  - name: lps-k8s-grafana-providers
+    files:
+      - dashboard-provider.yml=grafana/dashboard-provider.yml
+  - name: lps-k8s-grafana-dashboards
+    files:
+      - grafana/dashboards/lps-overview.json
+      - grafana/dashboards/lps-kafka-outbox.json
+      - grafana/dashboards/lps-redis-business.json
+      - grafana/dashboards/lps-saga.json
+      - grafana/dashboards/lps-performance.json

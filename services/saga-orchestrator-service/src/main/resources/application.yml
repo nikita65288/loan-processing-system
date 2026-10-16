@@ -1,0 +1,119 @@
+spring:
+  application:
+    name: saga-orchestrator-service
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://127.0.0.1:5432/lps?connectTimeout=5&socketTimeout=10}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      # Creates the schema before Liquibase requests its own changelog/lock tables.
+      connection-init-sql: CREATE SCHEMA IF NOT EXISTS saga_orchestrator
+      connection-timeout: 5000
+      initialization-fail-timeout: 5000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        default_schema: saga_orchestrator
+        jdbc:
+          time_zone: UTC
+
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+    default-schema: saga_orchestrator
+    liquibase-schema: saga_orchestrator
+
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      connect-timeout: ${SPRING_DATA_REDIS_CONNECT_TIMEOUT:500ms}
+      timeout: ${SPRING_DATA_REDIS_TIMEOUT:800ms}
+
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: saga-orchestrator-service
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+    producer:
+      acks: all
+
+lps:
+  cache:
+    saga:
+      enabled: ${LPS_CACHE_SAGA_ENABLED:true}
+      ttl: ${LPS_CACHE_SAGA_TTL:30s}
+      key-prefix: ${LPS_CACHE_SAGA_KEY_PREFIX:lps:saga:v1:}
+
+  outbox:
+    polling-interval-ms: ${LPS_SAGA_OUTBOX_POLLING_INTERVAL_MS:1000}
+    batch-size: ${LPS_SAGA_OUTBOX_BATCH_SIZE:20}
+    max-retries: ${LPS_SAGA_OUTBOX_MAX_RETRIES:10}
+    claim-timeout-seconds: ${LPS_SAGA_OUTBOX_CLAIM_TIMEOUT_SECONDS:60}
+    kafka-publish-timeout-seconds: ${LPS_SAGA_OUTBOX_KAFKA_PUBLISH_TIMEOUT_SECONDS:30}
+
+  saga:
+    timeout:
+      enabled: ${LPS_SAGA_TIMEOUT_ENABLED:true}
+      scoring: ${LPS_SAGA_TIMEOUT_SCORING:30s}
+      bureau: ${LPS_SAGA_TIMEOUT_BUREAU:45s}
+      decision: ${LPS_SAGA_TIMEOUT_DECISION:30s}
+      disbursement: ${LPS_SAGA_TIMEOUT_DISBURSEMENT:60s}
+      notification: ${LPS_SAGA_TIMEOUT_NOTIFICATION:30s}
+    retry:
+      max-attempts: ${LPS_SAGA_RETRY_MAX_ATTEMPTS:3}
+      backoff: ${LPS_SAGA_RETRY_BACKOFF:5s}
+    scheduler:
+      interval-ms: ${LPS_SAGA_SCHEDULER_INTERVAL_MS:1000}
+      batch-size: ${LPS_SAGA_SCHEDULER_BATCH_SIZE:50}
+
+  recovery:
+    startup-scan-enabled: ${LPS_RECOVERY_STARTUP_SCAN_ENABLED:true}
+    batch-size: ${LPS_RECOVERY_BATCH_SIZE:100}
+    max-sagas: ${LPS_RECOVERY_MAX_SAGAS:1000}
+
+server:
+  port: ${SERVER_PORT:8084}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+  tracing:
+    sampling:
+      probability: ${LPS_TRACING_SAMPLING:1.0}
+  otlp:
+    tracing:
+      endpoint: ${LPS_OTLP_ENDPOINT:http://localhost:4318/v1/traces}
+      connect-timeout: 1s
+      read-timeout: 2s
+
+# JSON files are optional for runtime correctness: Logstash tails them only when enabled.
+logging:
+  file:
+    name: ${LPS_LOG_DIR:logs}/${spring.application.name}.json.log
+  structured:
+    format:
+      file: ecs
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 3
+      total-size-cap: 60MB

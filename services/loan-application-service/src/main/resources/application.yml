@@ -1,0 +1,105 @@
+spring:
+  application:
+    name: loan-application-service
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://127.0.0.1:5432/lps?connectTimeout=5&socketTimeout=10}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      connection-timeout: 5000
+      initialization-fail-timeout: 5000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      connect-timeout: ${SPRING_DATA_REDIS_CONNECT_TIMEOUT:500ms}
+      timeout: ${SPRING_DATA_REDIS_TIMEOUT:800ms}
+
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+
+    consumer:
+      group-id: loan-application-service
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+
+lps:
+  cache:
+    loan-application:
+      enabled: ${LPS_CACHE_LOAN_APPLICATION_ENABLED:true}
+      ttl: ${LPS_CACHE_LOAN_APPLICATION_TTL:5m}
+      key-prefix: ${LPS_CACHE_LOAN_APPLICATION_KEY_PREFIX:lps:loan-application:v1:}
+  outbox:
+    polling-interval-ms: ${LPS_OUTBOX_POLLING_INTERVAL_MS:1000}
+    batch-size: ${LPS_OUTBOX_BATCH_SIZE:20}
+    max-retries: ${LPS_OUTBOX_MAX_RETRIES:10}
+    claim-timeout-seconds: ${LPS_OUTBOX_CLAIM_TIMEOUT_SECONDS:60}
+    kafka-publish-timeout-seconds: ${LPS_OUTBOX_KAFKA_PUBLISH_TIMEOUT_SECONDS:30}
+    cleanup:
+      enabled: ${LPS_OUTBOX_CLEANUP_ENABLED:true}
+      retention-days: ${LPS_OUTBOX_CLEANUP_RETENTION_DAYS:7}
+      interval-ms: ${LPS_OUTBOX_CLEANUP_INTERVAL_MS:3600000}
+
+server:
+  port: ${SERVER_PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+  tracing:
+    sampling:
+      probability: ${LPS_TRACING_SAMPLING:1.0}
+  otlp:
+    tracing:
+      endpoint: ${LPS_OTLP_ENDPOINT:http://localhost:4318/v1/traces}
+      connect-timeout: 1s
+      read-timeout: 2s
+
+# JSON files are optional for runtime correctness: Logstash tails them only when enabled.
+logging:
+  file:
+    name: ${LPS_LOG_DIR:logs}/${spring.application.name}.json.log
+  structured:
+    format:
+      file: ecs
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 3
+      total-size-cap: 60MB
