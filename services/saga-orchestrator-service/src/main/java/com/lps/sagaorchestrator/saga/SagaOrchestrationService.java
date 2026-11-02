@@ -168,25 +168,60 @@ public class SagaOrchestrationService {
         cacheInvalidation.afterCommit(saga.getApplicationId());
     }
 
-    /** Only a confirmation for the pending original command may advance an approved Saga. */
+    /** A matching late confirmation resolves only an UNKNOWN disbursement, never unrelated failures. */
     @Transactional
     public void handleDisbursementCompleted(LoanDisbursementCompletedEvent event) {
-        if(!inbox.register(event.eventId(),"LoanDisbursementCompleted")) return;
-        SagaInstance saga=lockedSaga(event.applicationId());
-        if(ignoreLateFailure(saga,event.eventId())) return;
-        if(!expectStepOrStale(saga,SagaStep.DISBURSEMENT)) {
-            requireSameResult("Disbursement id",saga,saga.getDisbursementId(),event.disbursementId());
+        if (!inbox.register(event.eventId(), "LoanDisbursementCompleted")) return;
+        SagaInstance saga = lockedSaga(event.applicationId());
+
+        boolean late = saga.awaitsLateDisbursementConfirmation();
+        boolean onTime = saga.awaitsDisbursementConfirmation();
+        boolean previouslyConfirmed = "COMPLETED".equals(saga.getDisbursementStatus())
+                && saga.getDisbursementId() != null
+                && (saga.getCurrentStep() == SagaStep.NOTIFICATION
+                    || (saga.getStatus() == SagaStatus.COMPLETED
+                        && saga.getCurrentStep() == SagaStep.FINISHED));
+
+        if (!late && !onTime && !previouslyConfirmed) {
+            // Do not resurrect FAILED, rejected or unrelated reconciliation states.
+            // The event stays in Inbox for operational investigation, not endless Kafka redelivery.
+            if (saga.getStatus() == SagaStatus.FAILED
+                    || saga.getStatus() == SagaStatus.REQUIRES_RECONCILIATION
+                    || saga.getStatus() == SagaStatus.COMPLETED) {
+                log.error("Disbursement confirmation requires investigation applicationId={} commandId={} "
+                                + "eventId={} sagaStatus={} step={} reason={} payoutStatus={}",
+                        saga.getApplicationId(), event.commandId(), event.eventId(),
+                        saga.getStatus(), saga.getCurrentStep(), saga.getFailureReason(),
+                        saga.getDisbursementStatus());
+                sagaMetrics.disbursementConfirmation("requires_investigation");
+                return;
+            }
+            throw new IllegalStateException("Unexpected disbursement completion for applicationId="
+                    + saga.getApplicationId() + ": " + saga.getStatus() + "/" + saga.getCurrentStep());
+        }
+
+        // Retries preserve commandId, which identifies the single logical payout operation.
+        verifyStepResult(saga, SagaStep.DISBURSEMENT, event.commandId(), event.correlationId());
+        if (event.disbursementId() == null || event.amount() == null
+                || saga.getAmount().compareTo(event.amount()) != 0
+                || !saga.getCurrency().equals(event.currency())) {
+            throw new IllegalStateException("Conflicting payout result for " + saga.getApplicationId());
+        }
+        if (previouslyConfirmed) {
+            requireSameResult("Disbursement id", saga, saga.getDisbursementId(), event.disbursementId());
+            sagaMetrics.disbursementConfirmation("already_confirmed");
             return;
         }
-        verifyStepResult(saga,SagaStep.DISBURSEMENT,event.commandId(),event.correlationId());
-        if(event.disbursementId()==null || event.amount()==null
-                || saga.getAmount().compareTo(event.amount())!=0
-                || !saga.getCurrency().equals(event.currency()))
-            throw new IllegalStateException("Conflicting payout result for "+saga.getApplicationId());
-        Instant now=clock.instant();
-        saga.completeDisbursement(event.disbursementId(),now);
-        queueNotification(saga,now);
+
+        Instant now = clock.instant();
+        saga.completeDisbursement(event.disbursementId(), now);
+        queueNotification(saga, now);
         cacheInvalidation.afterCommit(saga.getApplicationId());
+        if (late) {
+            log.info("Late disbursement confirmation applied applicationId={} commandId={} disbursementId={}",
+                    event.applicationId(), event.commandId(), event.disbursementId());
+        }
+        sagaMetrics.disbursementConfirmation(late ? "late_applied" : "on_time_applied");
     }
 
     /** A notification outcome never mutates an already-completed simulated payout. */

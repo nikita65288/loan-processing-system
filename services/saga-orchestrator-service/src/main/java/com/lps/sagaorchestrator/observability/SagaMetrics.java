@@ -58,6 +58,11 @@ public class SagaMetrics {
         afterCommit(() -> registry.counter("lps.saga.reconciliation.required").increment());
     }
 
+    /** Counts committed confirmation outcomes using bounded, non-identifying labels. */
+    public void disbursementConfirmation(String outcome) {
+        afterCommit(() -> registry.counter("lps.saga.disbursement.confirmations", "outcome", outcome).increment());
+    }
+
     private void recordDuration(Instant start, Instant end, String result) {
         if (start != null && end != null && !end.isBefore(start)) {
             Timer.builder("lps.saga.duration")

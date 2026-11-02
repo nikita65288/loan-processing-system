@@ -145,16 +145,38 @@ public class SagaInstance {
         this.updatedAt = now;
     }
 
-    /** The completed financial result is persisted before notification is requested. */
+    /** Only a DISBURSEMENT timeout with an unconfirmed financial result can be reconciled automatically. */
+    public boolean awaitsDisbursementConfirmation() {
+        return status == SagaStatus.IN_PROGRESS && currentStep == SagaStep.DISBURSEMENT
+                && finalDecision == Decision.APPROVED && disbursementId == null
+                && "PENDING".equals(disbursementStatus);
+    }
+
+    /** The reconciliation cause must match the operation; other terminal states cannot be reopened. */
+    public boolean awaitsLateDisbursementConfirmation() {
+        return status == SagaStatus.REQUIRES_RECONCILIATION
+                && currentStep == SagaStep.DISBURSEMENT
+                && "DISBURSEMENT_UNKNOWN".equals(failureReason)
+                && "UNKNOWN".equals(disbursementStatus)
+                && finalDecision == Decision.APPROVED && disbursementId == null;
+    }
+
+    /** The same verified payout transition serves on-time and late confirmations. */
     public void completeDisbursement(UUID id, Instant now) {
-        requireStep(SagaStep.DISBURSEMENT);
-        if (finalDecision != Decision.APPROVED || id == null)
-            throw new IllegalStateException("Only APPROVED Saga can record a payout");
-        this.disbursementId=id;
-        this.disbursementStatus="COMPLETED";
-        this.notificationStatus="PENDING";
-        this.currentStep=SagaStep.NOTIFICATION;
-        this.updatedAt=now;
+        boolean late = awaitsLateDisbursementConfirmation();
+        if (!awaitsDisbursementConfirmation() && !late)
+            throw new IllegalStateException("Saga does not await this disbursement confirmation");
+        Objects.requireNonNull(id, "Disbursement id cannot be null");
+        if (late) {
+            this.status = SagaStatus.IN_PROGRESS;
+            this.failureReason = null;
+            this.failedAt = null;
+        }
+        this.disbursementId = id;
+        this.disbursementStatus = "COMPLETED";
+        this.notificationStatus = "PENDING";
+        this.currentStep = SagaStep.NOTIFICATION;
+        this.updatedAt = now;
     }
 
     /** Real notification delivery is not claimed; this records only stub completion. */

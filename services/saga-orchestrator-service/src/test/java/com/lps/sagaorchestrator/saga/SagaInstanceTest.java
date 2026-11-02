@@ -58,6 +58,30 @@ class SagaInstanceTest {
         assertThrows(IllegalStateException.class, () -> saga.completeDecision(Decision.REJECTED, null, Instant.now()));
     }
 
+    @Test
+    void latePayoutRecoveryRequiresExactUnknownCause() {
+        SagaInstance saga = saga();
+        Instant now = Instant.now();
+        saga.completeScoring(740, null, now);
+        saga.completeBureau(750, false, now);
+        saga.completeDecision(Decision.APPROVED, "PASS", now);
+        assertTrue(saga.awaitsDisbursementConfirmation());
+        assertFalse(saga.awaitsLateDisbursementConfirmation());
+        saga.requireReconciliation(now);
+        assertFalse(saga.awaitsDisbursementConfirmation());
+        assertTrue(saga.awaitsLateDisbursementConfirmation());
+        UUID payoutId = UUID.randomUUID();
+        saga.completeDisbursement(payoutId, now.plusSeconds(1));
+        assertEquals(SagaStatus.IN_PROGRESS, saga.getStatus());
+        assertEquals(SagaStep.NOTIFICATION, saga.getCurrentStep());
+        assertEquals(payoutId, saga.getDisbursementId());
+        assertNull(saga.getFailureReason());
+        assertNull(saga.getFailedAt());
+        assertFalse(saga.awaitsLateDisbursementConfirmation());
+        assertThrows(IllegalStateException.class,
+                () -> saga.completeDisbursement(UUID.randomUUID(), now.plusSeconds(2)));
+    }
+
     private SagaInstance saga() {
         return SagaInstance.start(new ApplicationCreatedEvent(UUID.randomUUID(), "ApplicationCreated",
                 Instant.now(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
