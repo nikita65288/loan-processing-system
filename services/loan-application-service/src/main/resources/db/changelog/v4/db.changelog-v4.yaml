@@ -1,0 +1,24 @@
+databaseChangeLog:
+  - changeSet:
+      id: patch19-1-http-idempotency
+      author: lps
+      changes:
+        - addColumn:
+            tableName: loan_applications
+            columns:
+              - column:
+                  name: idempotency_key
+                  type: varchar(128)
+              - column:
+                  name: request_fingerprint
+                  type: varchar(64)
+        - addUniqueConstraint:
+            tableName: loan_applications
+            columnNames: idempotency_key
+            constraintName: uq_loan_applications_idempotency_key
+        - sql:
+            sql: |
+              ALTER TABLE loan_applications
+              ADD CONSTRAINT chk_loan_applications_idempotency_pair
+              CHECK ((idempotency_key IS NULL AND request_fingerprint IS NULL)
+                  OR (idempotency_key IS NOT NULL AND request_fingerprint IS NOT NULL));

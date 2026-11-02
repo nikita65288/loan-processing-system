@@ -16,6 +16,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.math.RoundingMode;
 import java.util.UUID;
 
 /**
@@ -55,20 +56,31 @@ public class LoanApplicationService {
      * Creates the application and its corresponding Outbox event atomically.
      */
     @Transactional
-    public LoanApplicationResponse create(
-            CreateLoanApplicationRequest request
-    ) {
+    public LoanApplicationResponse create(CreateLoanApplicationRequest request) {
+        return create(request, null, null);
+    }
 
+    /** A keyed creation and its original Outbox event are committed in one transaction. */
+    @Transactional
+    public LoanApplicationResponse create(CreateLoanApplicationRequest request,
+                                          String idempotencyKey,
+                                          String requestFingerprint) {
         UUID applicationId = UUID.randomUUID();
         LoanApplication application = new LoanApplication(
                 applicationId,
                 request.customerId(),
-                request.amount(),
+                request.amount().setScale(2, RoundingMode.UNNECESSARY),
                 request.term(),
                 request.currency()
         );
 
-        LoanApplication saved = repository.save(application);
+        if (idempotencyKey != null) {
+            application.assignIdempotency(idempotencyKey, requestFingerprint);
+        }
+        // Force the unique-key check before creating an Outbox record.
+        LoanApplication saved = idempotencyKey == null
+                ? repository.save(application)
+                : repository.saveAndFlush(application);
 
         ApplicationCreatedEvent event = new ApplicationCreatedEvent(
                 UUID.randomUUID(),

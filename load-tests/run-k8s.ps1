@@ -70,7 +70,8 @@ try {
 } finally { Remove-Item $tmp.FullName -ErrorAction SilentlyContinue }
 Write-Host "K6 Job $job started; RUN_ID=$RunId"
 $resultsDir = Join-Path $PSScriptRoot 'results'
-New-Item -ItemType Directory -Path $resultsDir -Force | Out-Null
+$runDir = Join-Path $resultsDir "$Scenario-$RunId"
+New-Item -ItemType Directory -Path $runDir -Force | Out-Null
 
 # A failed k6 threshold marks the Kubernetes Job Failed, never Complete.
 # Poll both terminal conditions; always collect logs and the report before reporting failure.
@@ -100,7 +101,7 @@ $logLines = & kubectl -n lps logs "pod/$podName" 2>&1
 if ($LASTEXITCODE -ne 0) { throw "Could not fetch Pod logs for $podName" }
 $logText = $logLines -join "`n"
 $utf8 = [System.Text.UTF8Encoding]::new($false)
-$logPath = Join-Path $resultsDir "$RunId-$Scenario-k6.log"
+$logPath = Join-Path $runDir "k6.log"
 [System.IO.File]::WriteAllText($logPath, $logText, $utf8)
 
 # k6 stdout embeds JSON between markers; no 'tar' or kubectl cp is required.
@@ -109,7 +110,7 @@ $found = [regex]::Match($logText, $markerRegex)
 if ($found.Success) {
     $jsonText = $found.Groups['json'].Value
     $report = $jsonText | ConvertFrom-Json
-    $reportPath = Join-Path $resultsDir "$RunId-$Scenario-summary.json"
+    $reportPath = Join-Path $runDir "summary.json"
     [System.IO.File]::WriteAllText($reportPath, $jsonText, $utf8)
     Write-Host "JSON report saved: $reportPath"
     $droppedCount = $report.metrics.dropped_iterations.values.count

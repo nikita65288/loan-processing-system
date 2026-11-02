@@ -75,7 +75,7 @@ Requires **JDK 17**, Docker Desktop in Linux-containers mode with **local Kubern
    ```json
    {"customerId":"11111111-1111-4111-8111-111111111111", "amount":10000.00, "term":12, "currency":"EUR"}
    ```
-   Expect `201 Created` with `id`. Then call `GET http://localhost:18080/applications/{id}` and `GET http://localhost:18084/sagas/applications/{id}`. Follow Saga status to a terminal outcome.
+   Optionally add `Idempotency-Key: <client-generated-UUID>` and use the **same key** for all retries of this logical POST. Expect `201 Created` with `id`. Then call `GET http://localhost:18080/applications/{id}` and `GET http://localhost:18084/sagas/applications/{id}`. Follow Saga status to a terminal outcome.
 
 Existing Kubernetes Secrets can be updated with `kubectl -n lps create secret generic lps-postgres --from-env-file=k8s/local/secrets.env --dry-run=client -o yaml | kubectl apply -f -`. The example credentials are **local-only**; never expose these ports to untrusted networks. **Do not run `docker compose down -v`**: it deletes persisted data. See [Kubernetes troubleshooting](k8s/README.md).
 
@@ -89,7 +89,7 @@ In one measured local baseline run: **601/601** accepted applications reached co
 
 ## Known limitations / planned reliability work
 
-- HTTP `POST /applications` currently has **no client idempotency key**; an HTTP retry after a lost response can create a second application.
+- **Patch 19.1 (source implementation; verification pending):** `POST /applications` accepts optional `Idempotency-Key`. Repeating the same key/payload replays the original `201 Created` without a new application/Outbox; the same key with a changed payload yields `409`. Requests without a key remain **non-idempotent**.
 - Kafka poison-message isolation, **DLT and operator-controlled replay** are not implemented consistently across consumers; indefinite retries may stall a partition.
 - **UNKNOWN disbursement reconciliation** needs a defined durable status inquiry / recovery workflow. Simulated payouts must never be presented as exactly-once real bank transfers.
 - **FAILED Outbox recovery**, backup/restore drills, infrastructure fault injection and recovery-time measurements need broader verification.

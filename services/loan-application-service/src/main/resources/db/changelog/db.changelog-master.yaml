@@ -19,3 +19,7 @@ databaseChangeLog:
               - column:
                   name: traceparent
                   type: varchar(55)
+
+  # Post-Stage 19 Patch 19.1: nullable metadata keeps existing rows compatible.
+  - include:
+      file: db/changelog/v4/db.changelog-v4.yaml

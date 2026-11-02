@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 @Getter
@@ -40,6 +41,13 @@ public class LoanApplication {
     @Column(name = "status", nullable = false, length = 32)
     private LoanApplicationStatus status;
 
+    // HTTP idempotency metadata remains durable for the lifetime of the application.
+    @Column(name = "idempotency_key", length = 128, updatable = false)
+    private String idempotencyKey;
+
+    @Column(name = "request_fingerprint", length = 64, updatable = false)
+    private String requestFingerprint;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -61,9 +69,18 @@ public class LoanApplication {
         this.status = LoanApplicationStatus.CREATED;
     }
 
+    /** Called before first persistence; never changes the existing creation payload. */
+    public void assignIdempotency(String key, String fingerprint) {
+        if (key == null || fingerprint == null || this.idempotencyKey != null) {
+            throw new IllegalArgumentException("Valid idempotency metadata is required");
+        }
+        this.idempotencyKey = key;
+        this.requestFingerprint = fingerprint;
+    }
+
     @PrePersist
     protected void onCreate() {
-        Instant now = Instant.now();
+        Instant now = Instant.now().truncatedTo(ChronoUnit.MICROS);
 
         if (createdAt == null) {
             createdAt = now;
@@ -74,6 +91,6 @@ public class LoanApplication {
 
     @PreUpdate
     protected void onUpdate() {
-        updatedAt = Instant.now();
+        updatedAt = Instant.now().truncatedTo(ChronoUnit.MICROS);
     }
 }

@@ -26,7 +26,7 @@ spec:
       terminationGracePeriodSeconds: 40
       containers:
       - name: bureau-service
-        image: lps/bureau-service:local-v1
+        image: lps/bureau-service:patch19.1-v1
         imagePullPolicy: IfNotPresent
         ports:
         - name: http

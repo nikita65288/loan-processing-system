@@ -55,17 +55,51 @@ function Invoke-LpsSql([string]$Sql, [string]$File, [switch]$Compact) {
     return $text
 }
 
-# k6 writes the real JSON into ./results after the runner hotfix.
-$summarySource = Join-Path $resultsRoot "$RunId-$Scenario-summary.json"
-$logSource = Join-Path $resultsRoot "$RunId-$Scenario-k6.log"
+# Prefer durable per-run artifacts; support legacy flat paths and recover from Kubernetes logs.
+$summarySource = Join-Path $outDir 'summary.json'
+$logSource = Join-Path $outDir 'k6.log'
+$legacySummary = Join-Path $resultsRoot "$RunId-$Scenario-summary.json"
+$legacyLog = Join-Path $resultsRoot "$RunId-$Scenario-k6.log"
+if (-not (Test-Path $summarySource) -and (Test-Path $legacySummary)) {
+    Copy-Item $legacySummary $summarySource -Force
+}
+if (-not (Test-Path $logSource) -and (Test-Path $legacyLog)) {
+    Copy-Item $legacyLog $logSource -Force
+}
+
+# Recover missing artifacts from retained Kubernetes Job logs, without rerunning the workload.
+if (-not (Test-Path $summarySource) -or -not (Test-Path $logSource)) {
+    try {
+        $k6LogLines = @(& kubectl --request-timeout=30s -n lps logs "job/lps-k6-$RunId" 2>&1)
+        if ($LASTEXITCODE -ne 0) { throw "kubectl logs exited with $LASTEXITCODE" }
+        $k6LogText = ($k6LogLines | ForEach-Object { "$_" }) -join "`n"
+        if (-not (Test-Path $logSource)) { Save-Text $logSource $k6LogText }
+        if (-not (Test-Path $summarySource)) {
+            $markerRegex = '(?s)LPS_K6_JSON_BEGIN\r?\n(?<json>.*?)\r?\nLPS_K6_JSON_END'
+            $match = [regex]::Match($k6LogText, $markerRegex)
+            if ($match.Success) {
+                $jsonText = $match.Groups['json'].Value
+                $parsed = $jsonText | ConvertFrom-Json -ErrorAction Stop
+                if ($parsed.run_id -eq $RunId -and $parsed.scenario -eq $Scenario) {
+                    Save-Text $summarySource $jsonText
+                    Write-Host "Recovered k6 summary from Kubernetes Job lps-k6-$RunId"
+                } else {
+                    $issues.Add('Recovered k6 JSON has mismatching RUN_ID/Scenario.')
+                }
+            } else {
+                $issues.Add('Kubernetes logs do not contain LPS_K6_JSON markers.')
+            }
+        }
+    } catch {
+        $issues.Add("Не удалось восстановить k6 artifacts из Kubernetes: $($_.Exception.Message)")
+    }
+}
 $summary = $null
 if (Test-Path $summarySource) {
-    Copy-Item $summarySource (Join-Path $outDir 'summary.json') -Force
-    try { $summary = Get-Content -Raw -Encoding UTF8 $summarySource | ConvertFrom-Json }
+    try { $summary = Get-Content -Raw -Encoding UTF8 $summarySource | ConvertFrom-Json -ErrorAction Stop }
     catch { $issues.Add("Некорректный JSON k6: $($_.Exception.Message)") }
-} else { $issues.Add('k6 summary.json отсутствует (например, Job завершился до публикации метрик).') }
-if (Test-Path $logSource) { Copy-Item $logSource (Join-Path $outDir 'k6.log') -Force }
-else { $issues.Add('k6.log отсутствует.') }
+} else { $issues.Add('k6 summary.json отсутствует; Job logs unavailable or without JSON markers.') }
+if (-not (Test-Path $logSource)) { $issues.Add('k6.log отсутствует.') }
 if ($summary -and ($summary.run_id -ne $RunId -or $summary.scenario -ne $Scenario)) {
     $issues.Add('RUN_ID/Scenario в k6 JSON не совпадает с параметрами отчёта.')
     $summary = $null

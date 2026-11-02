@@ -26,7 +26,7 @@ spec:
       terminationGracePeriodSeconds: 40
       containers:
       - name: loan-application-service
-        image: lps/loan-application-service:local-v1
+        image: lps/loan-application-service:patch19.1-v1
         imagePullPolicy: IfNotPresent
         ports:
         - name: http
