@@ -11,7 +11,7 @@ data:
   SPRING_KAFKA_BOOTSTRAP_SERVERS: host.docker.internal:19092
   LPS_OTLP_ENDPOINT: http://host.docker.internal:4318/v1/traces
   # Enable only after deploying the new Disbursement inquiry consumer.
-  LPS_SAGA_INQUIRY_ENABLED: 'false'
+  LPS_SAGA_INQUIRY_ENABLED: 'true'
   LOGGING_STRUCTURED_FORMAT_CONSOLE: ecs
   LPS_LOG_DIR: /tmp/lps-logs
   SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: '3'
