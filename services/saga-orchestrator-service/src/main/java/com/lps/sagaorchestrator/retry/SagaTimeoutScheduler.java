@@ -16,15 +16,18 @@ public class SagaTimeoutScheduler {
     private static final Logger log = LoggerFactory.getLogger(SagaTimeoutScheduler.class);
     private final SagaStepAttemptRepository attempts;
     private final SagaRetryService retry;
+    private final DisbursementStatusInquiryService inquiries;
     private final SagaRetryProperties policy;
     private final Clock clock;
     // Rotating scan offset is a fairness hint only; all real deadlines live in PostgreSQL.
     private final AtomicInteger offset = new AtomicInteger();
 
     public SagaTimeoutScheduler(SagaStepAttemptRepository attempts, SagaRetryService retry,
-                                SagaRetryProperties policy, Clock clock) {
+                                SagaRetryProperties policy, Clock clock,
+                                DisbursementStatusInquiryService inquiries) {
         this.attempts = attempts;
         this.retry = retry;
+        this.inquiries = inquiries;
         this.policy = policy;
         this.clock = clock;
     }
@@ -45,9 +48,11 @@ public class SagaTimeoutScheduler {
             try {
                 retry.process(sagaId);
             } catch (Exception exception) {
-                // Do not prevent other Saga from progressing; next poll retries this candidate.
                 log.error("Saga timeout processing failed sagaId={}", sagaId, exception);
             }
         }
+        // Same scheduler, separate read-only query for durable UNKNOWN reconciliation work.
+        try { inquiries.scan(); }
+        catch (Exception exception) { log.error("Disbursement inquiry scan failed", exception); }
     }
 }

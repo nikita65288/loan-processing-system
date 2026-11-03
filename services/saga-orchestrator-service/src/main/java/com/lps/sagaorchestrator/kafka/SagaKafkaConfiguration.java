@@ -1,5 +1,6 @@
 package com.lps.sagaorchestrator.kafka;
 
+import com.lps.contracts.event.DisbursementStatusInquiryResultEvent;
 import com.lps.contracts.event.LoanDisbursementCompletedEvent;
 import com.lps.contracts.event.LoanDisbursementFailedEvent;
 import com.lps.contracts.event.LoanNotificationCompletedEvent;
@@ -46,6 +47,8 @@ public class SagaKafkaConfiguration {
     public static final String DISBURSEMENT_REQUESTED_TOPIC = "loan.disbursement.requested";
     public static final String DISBURSEMENT_COMPLETED_TOPIC = "loan.disbursement.completed";
     public static final String DISBURSEMENT_FAILED_TOPIC = "loan.disbursement.failed";
+    public static final String DISBURSEMENT_INQUIRY_REQUESTED_TOPIC = "loan.disbursement.status.inquiry.requested";
+    public static final String DISBURSEMENT_INQUIRY_RESULT_TOPIC = "loan.disbursement.status.inquiry.result";
     public static final String NOTIFICATION_REQUESTED_TOPIC = "loan.notification.requested";
     public static final String NOTIFICATION_COMPLETED_TOPIC = "loan.notification.completed";
     public static final String NOTIFICATION_FAILED_TOPIC = "loan.notification.failed";
@@ -66,6 +69,8 @@ public class SagaKafkaConfiguration {
     @Bean NewTopic disbursementRequestedTopic(){return new NewTopic(DISBURSEMENT_REQUESTED_TOPIC,3,(short)1);}
     @Bean NewTopic disbursementCompletedTopic(){return new NewTopic(DISBURSEMENT_COMPLETED_TOPIC,3,(short)1);}
     @Bean NewTopic disbursementFailedTopic(){return new NewTopic(DISBURSEMENT_FAILED_TOPIC,3,(short)1);}
+    @Bean NewTopic disbursementInquiryRequestedTopic(){return new NewTopic(DISBURSEMENT_INQUIRY_REQUESTED_TOPIC,3,(short)1);}
+    @Bean NewTopic disbursementInquiryResultTopic(){return new NewTopic(DISBURSEMENT_INQUIRY_RESULT_TOPIC,3,(short)1);}
     @Bean NewTopic notificationRequestedTopic(){return new NewTopic(NOTIFICATION_REQUESTED_TOPIC,3,(short)1);}
     @Bean NewTopic notificationCompletedTopic(){return new NewTopic(NOTIFICATION_COMPLETED_TOPIC,3,(short)1);}
     @Bean NewTopic notificationFailedTopic(){return new NewTopic(NOTIFICATION_FAILED_TOPIC,3,(short)1);}
@@ -164,6 +169,11 @@ public class SagaKafkaConfiguration {
             @Value("${spring.kafka.bootstrap-servers}") String brokers,
             @Value("${lps.kafka.consumer.enabled:true}") boolean enabled) {
         return eventListenerFactory(eventConsumerFactory(brokers,LoanDisbursementCompletedEvent.class),enabled);
+    }
+    @Bean ConcurrentKafkaListenerContainerFactory<String,DisbursementStatusInquiryResultEvent> disbursementInquiryResultListenerFactory(
+            @Value("${spring.kafka.bootstrap-servers}") String brokers,
+            @Value("${lps.kafka.consumer.enabled:true}") boolean enabled) {
+        return eventListenerFactory(eventConsumerFactory(brokers,DisbursementStatusInquiryResultEvent.class),enabled);
     }
     @Bean ConcurrentKafkaListenerContainerFactory<String,LoanDisbursementFailedEvent> disbursementFailedListenerFactory(
             @Value("${spring.kafka.bootstrap-servers}") String brokers,

@@ -26,7 +26,7 @@ spec:
       terminationGracePeriodSeconds: 40
       containers:
       - name: loan-disbursement-service
-        image: lps/loan-disbursement-service:patch19.1-v1
+        image: lps/loan-disbursement-service:patch19.3-v1
         imagePullPolicy: IfNotPresent
         ports:
         - name: http

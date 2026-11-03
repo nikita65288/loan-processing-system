@@ -70,6 +70,11 @@ lps:
     retry:
       max-attempts: ${LPS_SAGA_RETRY_MAX_ATTEMPTS:3}
       backoff: ${LPS_SAGA_RETRY_BACKOFF:5s}
+    inquiry:
+      enabled: ${LPS_SAGA_INQUIRY_ENABLED:true}
+      max-attempts: ${LPS_SAGA_INQUIRY_MAX_ATTEMPTS:5}
+      retry-interval: ${LPS_SAGA_INQUIRY_RETRY_INTERVAL:30s}
+      batch-size: ${LPS_SAGA_INQUIRY_BATCH_SIZE:50}
     scheduler:
       interval-ms: ${LPS_SAGA_SCHEDULER_INTERVAL_MS:1000}
       batch-size: ${LPS_SAGA_SCHEDULER_BATCH_SIZE:50}

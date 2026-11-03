@@ -2,6 +2,7 @@ package com.lps.sagaorchestrator.saga;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.lps.contracts.MessageIdentity;
 import com.lps.contracts.command.DisburseLoanCommand;
 import com.lps.contracts.command.SendLoanDecisionNotificationCommand;
 import com.lps.contracts.model.Decision;
@@ -13,6 +14,8 @@ import com.lps.contracts.event.ApplicationCreatedEvent;
 import com.lps.contracts.event.BureauCheckCompletedEvent;
 import com.lps.contracts.event.CreditScoringCompletedEvent;
 import com.lps.contracts.event.DecisionCompletedEvent;
+import com.lps.contracts.event.DisbursementInquiryStatus;
+import com.lps.contracts.event.DisbursementStatusInquiryResultEvent;
 import com.lps.contracts.event.LoanDisbursementCompletedEvent;
 import com.lps.contracts.event.LoanNotificationCompletedEvent;
 import com.lps.contracts.event.ProcessingFailureEvent;
@@ -27,6 +30,7 @@ import com.lps.sagaorchestrator.retry.SagaStepAttempt;
 import com.lps.sagaorchestrator.retry.SagaStepAttemptRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,6 +53,7 @@ public class SagaOrchestrationService {
     private final SagaCompensationPolicy compensationPolicy;
     private final SagaCacheInvalidation cacheInvalidation;
     private final SagaMetrics sagaMetrics;
+    private final JdbcTemplate jdbc;
 
     public SagaOrchestrationService(
             SagaRepository sagaRepository,
@@ -60,7 +65,8 @@ public class SagaOrchestrationService {
             Clock clock,
             SagaCompensationPolicy compensationPolicy,
             SagaCacheInvalidation cacheInvalidation,
-            SagaMetrics sagaMetrics
+            SagaMetrics sagaMetrics,
+            JdbcTemplate jdbc
     ) {
         this.sagaRepository = sagaRepository;
         this.outboxRepository = outboxRepository;
@@ -72,6 +78,7 @@ public class SagaOrchestrationService {
         this.compensationPolicy = compensationPolicy;
         this.cacheInvalidation = cacheInvalidation;
         this.sagaMetrics = sagaMetrics;
+        this.jdbc = jdbc;
     }
 
     /** A transaction-scoped application lock closes the initial no-Saga-row race. */
@@ -174,6 +181,49 @@ public class SagaOrchestrationService {
         if (!inbox.register(event.eventId(), "LoanDisbursementCompleted")) return;
         SagaInstance saga = lockedSaga(event.applicationId());
 
+        applyVerifiedDisbursementSuccess(saga, event.commandId(), event.correlationId(),
+                event.disbursementId(), event.amount(), event.currency(), event.eventId());
+    }
+
+    /** An inquiry result is trusted only for a request durably issued for this Saga and operation. */
+    @Transactional
+    public void handleDisbursementInquiryResult(DisbursementStatusInquiryResultEvent result) {
+        if (result == null || result.eventId() == null || result.inquiryId() == null
+                || result.applicationId() == null || result.disbursementCommandId() == null
+                || result.status() == null || result.correlationId() == null
+                || !"DisbursementStatusInquiryResult".equals(result.eventType())
+                || result.occurredAt() == null
+                || !result.eventId().equals(MessageIdentity.resultEventId(
+                        result.inquiryId(), "DisbursementStatusInquiryResult"))) {
+            throw new IllegalArgumentException("Invalid status inquiry result contract");
+        }
+        if (!inbox.register(result.eventId(), result.eventType())) return;
+        SagaInstance saga = lockedSaga(result.applicationId());
+        Integer issued = jdbc.queryForObject("""
+                SELECT count(*) FROM saga_orchestrator.disbursement_inquiry_attempts
+                WHERE saga_id=? AND inquiry_id=? AND disbursement_command_id=?
+                """, Integer.class, saga.getSagaId(), result.inquiryId(), result.disbursementCommandId());
+        if (issued == null || issued != 1) {
+            log.error("Unissued or mismatching inquiry reply applicationId={} inquiryId={}",
+                    result.applicationId(), result.inquiryId());
+            sagaMetrics.disbursementConfirmation("inquiry_identity_mismatch");
+            return;
+        }
+        // Check correlation and original business identity even for NOT_FOUND/CONFLICT.
+        verifyStepResult(saga, SagaStep.DISBURSEMENT, result.disbursementCommandId(), result.correlationId());
+        if (result.status() != DisbursementInquiryStatus.COMPLETED) {
+            log.warn("Disbursement status inquiry unresolved applicationId={} inquiryId={} status={}",
+                    result.applicationId(), result.inquiryId(), result.status());
+            sagaMetrics.disbursementConfirmation("inquiry_" + result.status().name().toLowerCase());
+            return; // NOT_FOUND/CONFLICT can never authorize another payout or terminal transition.
+        }
+        applyVerifiedDisbursementSuccess(saga, result.disbursementCommandId(), result.correlationId(),
+                result.disbursementId(), result.amount(), result.currency(), result.eventId());
+    }
+
+    /** Shared Patch 19.2 business rules for both late completion and durable inquiry confirmation. */
+    private void applyVerifiedDisbursementSuccess(SagaInstance saga, UUID commandId, UUID correlationId,
+            UUID disbursementId, java.math.BigDecimal amount, String currency, UUID eventId) {
         boolean late = saga.awaitsLateDisbursementConfirmation();
         boolean onTime = saga.awaitsDisbursementConfirmation();
         boolean previouslyConfirmed = "COMPLETED".equals(saga.getDisbursementStatus())
@@ -183,14 +233,12 @@ public class SagaOrchestrationService {
                         && saga.getCurrentStep() == SagaStep.FINISHED));
 
         if (!late && !onTime && !previouslyConfirmed) {
-            // Do not resurrect FAILED, rejected or unrelated reconciliation states.
-            // The event stays in Inbox for operational investigation, not endless Kafka redelivery.
             if (saga.getStatus() == SagaStatus.FAILED
                     || saga.getStatus() == SagaStatus.REQUIRES_RECONCILIATION
                     || saga.getStatus() == SagaStatus.COMPLETED) {
                 log.error("Disbursement confirmation requires investigation applicationId={} commandId={} "
                                 + "eventId={} sagaStatus={} step={} reason={} payoutStatus={}",
-                        saga.getApplicationId(), event.commandId(), event.eventId(),
+                        saga.getApplicationId(), commandId, eventId,
                         saga.getStatus(), saga.getCurrentStep(), saga.getFailureReason(),
                         saga.getDisbursementStatus());
                 sagaMetrics.disbursementConfirmation("requires_investigation");
@@ -200,26 +248,24 @@ public class SagaOrchestrationService {
                     + saga.getApplicationId() + ": " + saga.getStatus() + "/" + saga.getCurrentStep());
         }
 
-        // Retries preserve commandId, which identifies the single logical payout operation.
-        verifyStepResult(saga, SagaStep.DISBURSEMENT, event.commandId(), event.correlationId());
-        if (event.disbursementId() == null || event.amount() == null
-                || saga.getAmount().compareTo(event.amount()) != 0
-                || !saga.getCurrency().equals(event.currency())) {
+        verifyStepResult(saga, SagaStep.DISBURSEMENT, commandId, correlationId);
+        if (disbursementId == null || amount == null
+                || saga.getAmount().compareTo(amount) != 0
+                || !saga.getCurrency().equals(currency)) {
             throw new IllegalStateException("Conflicting payout result for " + saga.getApplicationId());
         }
         if (previouslyConfirmed) {
-            requireSameResult("Disbursement id", saga, saga.getDisbursementId(), event.disbursementId());
+            requireSameResult("Disbursement id", saga, saga.getDisbursementId(), disbursementId);
             sagaMetrics.disbursementConfirmation("already_confirmed");
             return;
         }
-
         Instant now = clock.instant();
-        saga.completeDisbursement(event.disbursementId(), now);
+        saga.completeDisbursement(disbursementId, now);
         queueNotification(saga, now);
         cacheInvalidation.afterCommit(saga.getApplicationId());
         if (late) {
-            log.info("Late disbursement confirmation applied applicationId={} commandId={} disbursementId={}",
-                    event.applicationId(), event.commandId(), event.disbursementId());
+            log.info("Reconciled late disbursement confirmation applicationId={} commandId={} disbursementId={}",
+                    saga.getApplicationId(), commandId, disbursementId);
         }
         sagaMetrics.disbursementConfirmation(late ? "late_applied" : "on_time_applied");
     }

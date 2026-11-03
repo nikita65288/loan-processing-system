@@ -24,7 +24,7 @@ class SagaTimeoutSchedulerTest {
                 new SagaRetryProperties.Scheduler(2));
         Instant now = Instant.parse("2026-10-12T09:00:00Z");
         var scheduler = new SagaTimeoutScheduler(attempts, retry, policy,
-                Clock.fixed(now, ZoneOffset.UTC));
+                Clock.fixed(now, ZoneOffset.UTC), mock(DisbursementStatusInquiryService.class));
         UUID a = UUID.randomUUID(), b = UUID.randomUUID(), c = UUID.randomUUID();
         when(attempts.findDueSagaIds(now, 3, 2, 0)).thenReturn(List.of(a, b));
         when(attempts.findDueSagaIds(now, 3, 2, 2)).thenReturn(List.of(c));

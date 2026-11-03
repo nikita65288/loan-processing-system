@@ -91,9 +91,9 @@ In one measured local baseline run: **601/601** accepted applications reached co
 
 - **Patch 19.1 (implemented and published):** `POST /applications` accepts optional `Idempotency-Key`. Repeating the same key/payload replays the original `201 Created` without a new application/Outbox; the same key with a changed payload yields `409`. Requests without a key remain **non-idempotent**.
 - Kafka poison-message isolation, **DLT and operator-controlled replay** are not implemented consistently across consumers; indefinite retries may stall a partition.
-- **Patch 19.2 (implemented in source; verification pending):** late matching Disbursement completion can safely resume a Saga after `DISBURSEMENT_UNKNOWN`, without duplicate payout or Notification.
-- **Remaining UNKNOWN reconciliation:** outcomes with no completion event or historically consumed-and-ignored confirmation still need a durable status inquiry (planned Patch 19.3). Simulated payouts must never be presented as exactly-once real bank transfers.
-- **FAILED Outbox recovery**, backup/restore drills, infrastructure fault injection and recovery-time measurements need broader verification.
+- **Patch 19.2 (verified):** late matching Disbursement completion can safely resume a Saga after `DISBURSEMENT_UNKNOWN`, without duplicate payout or Notification.
+- **Patch 19.3 (implemented in source; verification pending):** a bounded durable read-only status inquiry requests the committed payout result over two Kafka topics. It never invokes payout execution; a verified COMPLETED applies the same guarded Saga transition as Patch 19.2. `NOT_FOUND` and `CONFLICT` keep the Saga in reconciliation. Simulated payouts must never be presented as exactly-once real bank transfers.
+- **FAILED Outbox recovery**, Kafka DLT/replay, backup/restore drills, end-to-end fault injection and recovery-time measurements need broader verification.
 - Under load, the Saga/Outbox pipeline can lag behind accepted HTTP requests; end-to-end sustainable throughput and scaling improvements are work in progress.
 - Kubernetes runs locally on one node, with PostgreSQL/Kafka/Redis in Docker Compose: **not production high availability or disaster recovery**. Scoring, bureau, decision, disbursement and notification are simulated.
 

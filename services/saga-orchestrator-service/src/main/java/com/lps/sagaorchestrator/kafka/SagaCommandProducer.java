@@ -1,5 +1,6 @@
 package com.lps.sagaorchestrator.kafka;
 
+import com.lps.contracts.command.DisbursementStatusInquiryCommand;
 import com.lps.contracts.command.DisburseLoanCommand;
 import com.lps.contracts.command.SendLoanDecisionNotificationCommand;
 import com.lps.contracts.command.MakeDecisionCommand;
@@ -28,6 +29,7 @@ public class SagaCommandProducer {
         else if (command instanceof PerformBureauCheckCommand c) applicationId = c.applicationId();
         else if (command instanceof MakeDecisionCommand c) applicationId = c.applicationId();
         else if (command instanceof DisburseLoanCommand c) applicationId = c.applicationId();
+        else if (command instanceof DisbursementStatusInquiryCommand c) applicationId = c.applicationId();
         else if (command instanceof SendLoanDecisionNotificationCommand c) applicationId = c.applicationId();
         else throw new IllegalArgumentException("Unsupported Saga command: " + command.getClass());
         return kafkaTemplate.send(topic, applicationId.toString(), command);

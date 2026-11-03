@@ -6,6 +6,7 @@ import io.micrometer.core.instrument.Timer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lps.contracts.command.PerformCreditScoringCommand;
 import com.lps.contracts.command.PerformBureauCheckCommand;
+import com.lps.contracts.command.DisbursementStatusInquiryCommand;
 import com.lps.contracts.command.DisburseLoanCommand;
 import com.lps.contracts.command.SendLoanDecisionNotificationCommand;
 import com.lps.contracts.command.MakeDecisionCommand;
@@ -119,6 +120,10 @@ public class SagaOutboxPublisher {
                 case "MakeDecision" -> {
                     requireTopic(record, SagaKafkaConfiguration.DECISION_REQUESTED_TOPIC);
                     yield mapper.readValue(record.getPayload(), MakeDecisionCommand.class);
+                }
+                case "DisbursementStatusInquiry" -> {
+                    requireTopic(record, SagaKafkaConfiguration.DISBURSEMENT_INQUIRY_REQUESTED_TOPIC);
+                    yield mapper.readValue(record.getPayload(), DisbursementStatusInquiryCommand.class);
                 }
                 case "DisburseLoan" -> {
                     requireTopic(record,SagaKafkaConfiguration.DISBURSEMENT_REQUESTED_TOPIC);

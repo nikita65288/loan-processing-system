@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - changeSet:
+      id: saga-patch19-3-disbursement-inquiries
+      author: lps
+      sqlFile:
+        path: 001-disbursement-status-inquiry.sql
+        relativeToChangelogFile: true
+        splitStatements: true
+        stripComments: true

@@ -21,9 +21,32 @@ public class LocalKafkaConfiguration {
     public static final String REQUESTED="loan.disbursement.requested";
     public static final String COMPLETED="loan.disbursement.completed";
     public static final String FAILED="loan.disbursement.failed";
+    public static final String INQUIRY_REQUESTED="loan.disbursement.status.inquiry.requested";
+    public static final String INQUIRY_RESULT="loan.disbursement.status.inquiry.result";
     @Bean NewTopic requestedTopic() { return new NewTopic(REQUESTED,3,(short)1); }
     @Bean NewTopic completedTopic() { return new NewTopic(COMPLETED,3,(short)1); }
     @Bean NewTopic failedTopic() { return new NewTopic(FAILED,3,(short)1); }
+    @Bean NewTopic inquiryRequestedTopic() { return new NewTopic(INQUIRY_REQUESTED,3,(short)1); }
+    @Bean NewTopic inquiryResultTopic() { return new NewTopic(INQUIRY_RESULT,3,(short)1); }
+    @Bean ConcurrentKafkaListenerContainerFactory<String,com.lps.contracts.command.DisbursementStatusInquiryCommand> inquiryListenerFactory(
+            @Value("${spring.kafka.bootstrap-servers}") String brokers,
+            @Value("${lps.kafka.consumer.enabled:true}") boolean enabled) {
+        Map<String,Object> props=new HashMap<>();
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,brokers);
+        props.put(ConsumerConfig.GROUP_ID_CONFIG,"loan-disbursement-service-status-inquiry");
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,false);
+        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,"earliest");
+        var deserializer=new JsonDeserializer<>(com.lps.contracts.command.DisbursementStatusInquiryCommand.class,false);
+        deserializer.addTrustedPackages("com.lps.contracts");
+        var factory=new ConcurrentKafkaListenerContainerFactory<String,com.lps.contracts.command.DisbursementStatusInquiryCommand>();
+        factory.setConsumerFactory(new DefaultKafkaConsumerFactory<>(props,new StringDeserializer(),deserializer));
+        factory.setAutoStartup(enabled);
+        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.RECORD);
+        factory.getContainerProperties().setObservationEnabled(true);
+        factory.setRecordInterceptor(new com.lps.loandisbursement.observability.KafkaMdcInterceptor<>());
+        factory.setCommonErrorHandler(new DefaultErrorHandler(new FixedBackOff(1000L,FixedBackOff.UNLIMITED_ATTEMPTS)));
+        return factory;
+    }
     @Bean
     ConcurrentKafkaListenerContainerFactory<String,com.lps.contracts.command.DisburseLoanCommand> commandListenerFactory(
             @Value("${spring.kafka.bootstrap-servers}") String brokers,

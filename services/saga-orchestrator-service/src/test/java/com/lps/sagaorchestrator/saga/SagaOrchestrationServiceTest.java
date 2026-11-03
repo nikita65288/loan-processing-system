@@ -36,7 +36,7 @@ class SagaOrchestrationServiceTest {
             new SagaRetryProperties.Scheduler(50));
     private final SagaOrchestrationService service = new SagaOrchestrationService(
             sagas, outbox, inbox, mapper, attempts, policy, Clock.systemUTC(), new SagaCompensationPolicy(), mock(SagaCacheInvalidation.class),
-            mock(com.lps.sagaorchestrator.observability.SagaMetrics.class));
+            mock(com.lps.sagaorchestrator.observability.SagaMetrics.class), mock(org.springframework.jdbc.core.JdbcTemplate.class));
 
     @Test
     void createsScoringCommandWithEventData() throws Exception {

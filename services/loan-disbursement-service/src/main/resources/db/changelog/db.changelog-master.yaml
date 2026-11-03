@@ -7,6 +7,14 @@ databaseChangeLog:
             path: db/changelog/001-init.sql
             splitStatements: true
 
+  - changeSet:
+      id: patch19-3-inquiry-inbox
+      author: lps
+      changes:
+        - sqlFile:
+            path: db/changelog/002-status-inquiries.sql
+            splitStatements: true
+
   # Nullable trace context: old pending Outbox rows remain publishable.
   - changeSet:
       id: stage16-outbox-traceparent

@@ -12,6 +12,9 @@ databaseChangeLog:
   - include:
       file: db/changelog/v6/db.changelog-v6.yaml
 
+  - include:
+      file: db/changelog/v7/db.changelog-v7.yaml
+
   # Nullable trace context: old pending Outbox rows remain publishable.
   - changeSet:
       id: stage16-outbox-traceparent
