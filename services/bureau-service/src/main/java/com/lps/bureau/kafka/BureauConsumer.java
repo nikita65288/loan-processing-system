@@ -40,6 +40,13 @@ public class BureauConsumer {
             containerFactory = "kafkaListenerContainerFactory"
     )
     public void consume(ConsumerRecord<String, PerformBureauCheckCommand> record) {
+
+        if (record.value() == null || record.value().applicationId() == null
+                || record.value().commandId() == null || record.value().correlationId() == null
+                || record.value().occurredAt() == null || !"PerformBureauCheck".equals(record.value().commandType())
+                || !record.value().applicationId().toString().equals(record.key())) {
+            throw new com.lps.kafka.reliability.InvalidKafkaRecordException("Kafka command key must equal applicationId");
+        }
         PerformBureauCheckCommand command = record.value();
         log.info(
                 "Received PerformBureauCheckCommand commandId={}, applicationId={}, correlationId={}, key={}, partition={}, offset={}",

@@ -13,8 +13,12 @@ public class LoanDisbursementCompletedListener {
             groupId=SagaKafkaConfiguration.CONSUMER_GROUP,containerFactory="disbursementCompletedListenerFactory")
     public void consume(ConsumerRecord<String,LoanDisbursementCompletedEvent> record) {
         if(record.value()==null || record.value().applicationId()==null
+                || record.value().eventId()==null || record.value().correlationId()==null
+                || record.value().eventType()==null || record.value().occurredAt()==null
+                || record.value().commandId()==null || record.value().disbursementId()==null
+                || !"LoanDisbursementCompleted".equals(record.value().eventType())
                 || !record.value().applicationId().toString().equals(record.key()))
-            throw new IllegalArgumentException("Kafka key must be applicationId");
+            throw new com.lps.kafka.reliability.InvalidKafkaRecordException("Kafka key must be applicationId");
         orchestrator.handleDisbursementCompleted(record.value());
     }
 }

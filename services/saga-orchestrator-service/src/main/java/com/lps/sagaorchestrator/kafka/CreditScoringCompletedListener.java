@@ -20,6 +20,13 @@ public class CreditScoringCompletedListener {
             groupId = SagaKafkaConfiguration.CONSUMER_GROUP,
             containerFactory = "scoringCompletedListenerFactory")
     public void consume(ConsumerRecord<String, CreditScoringCompletedEvent> record) {
+        if (record.value() == null || record.value().applicationId() == null
+                || record.value().eventId() == null || record.value().correlationId() == null
+                || record.value().eventType() == null || record.value().occurredAt() == null
+                || !"CreditScoringCompleted".equals(record.value().eventType())
+                || !record.value().applicationId().toString().equals(record.key())) {
+            throw new com.lps.kafka.reliability.InvalidKafkaRecordException("Kafka event key must equal applicationId");
+        }
         service.handleCreditScoringCompleted(record.value());
         // Log only after the database transaction has returned successfully.
         log.info("Saga completion event processed topic={}, applicationId={}, partition={}, offset={}",

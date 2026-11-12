@@ -20,8 +20,11 @@ public class BureauCheckFailedListener {
             containerFactory = "bureauFailedListenerFactory")
     public void consume(ConsumerRecord<String, BureauCheckFailedEvent> record) {
         if (record.value() == null || record.value().applicationId() == null
+                || record.value().eventId() == null || record.value().correlationId() == null
+                || record.value().eventType() == null || record.value().occurredAt() == null
+                || !"BureauCheckFailed".equals(record.value().eventType())
                 || !record.value().applicationId().toString().equals(record.key())) {
-            throw new IllegalArgumentException("Kafka failure key must equal applicationId");
+            throw new com.lps.kafka.reliability.InvalidKafkaRecordException("Kafka failure key must equal applicationId");
         }
         orchestrator.handleFailure(record.value(), SagaStep.BUREAU);
     }

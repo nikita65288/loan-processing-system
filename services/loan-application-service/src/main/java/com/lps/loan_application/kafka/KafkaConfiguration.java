@@ -19,7 +19,13 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Configuration
+@org.springframework.context.annotation.Import(com.lps.kafka.reliability.KafkaDltSupportConfiguration.class)
 public class KafkaConfiguration {
+    private final com.lps.kafka.reliability.KafkaDltSupport kafkaDltSupport;
+    public KafkaConfiguration(com.lps.kafka.reliability.KafkaDltSupport kafkaDltSupport) {
+        this.kafkaDltSupport = kafkaDltSupport;
+    }
+
     public static final String APPLICATION_CREATED_TOPIC = "loan.application.created";
     public static final String CONSUMER_GROUP = "loan-application-service";
 
@@ -54,11 +60,7 @@ public class KafkaConfiguration {
         properties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         properties.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
 
-        JsonDeserializer<ApplicationCreatedEvent> deserializer = new JsonDeserializer<>(
-                ApplicationCreatedEvent.class,
-                false
-        );
-        deserializer.addTrustedPackages("com.lps.contracts");
+        var deserializer = com.lps.kafka.reliability.KafkaDltSupport.valueDeserializer(ApplicationCreatedEvent.class);
 
         return new DefaultKafkaConsumerFactory<>(
                 properties,
@@ -75,6 +77,7 @@ public class KafkaConfiguration {
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.RECORD);
         factory.getContainerProperties().setObservationEnabled(true);
         factory.setRecordInterceptor(new com.lps.loan_application.observability.KafkaMdcInterceptor<>());
+        factory.setCommonErrorHandler(kafkaDltSupport.newErrorHandler());
         return factory;
     }
 

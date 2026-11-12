@@ -20,6 +20,7 @@
 
     <modules>
         <module>lps-contracts</module>
+        <module>lps-kafka-reliability</module>
         <module>services/loan-application-service</module>
         <module>services/credit-scoring-service</module>
         <module>services/bureau-service</module>

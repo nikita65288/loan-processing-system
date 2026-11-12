@@ -20,6 +20,13 @@ public class DecisionCompletedListener {
             groupId = SagaKafkaConfiguration.CONSUMER_GROUP,
             containerFactory = "decisionCompletedListenerFactory")
     public void consume(ConsumerRecord<String, DecisionCompletedEvent> record) {
+        if (record.value() == null || record.value().applicationId() == null
+                || record.value().eventId() == null || record.value().correlationId() == null
+                || record.value().eventType() == null || record.value().occurredAt() == null
+                || !"DecisionCompleted".equals(record.value().eventType())
+                || !record.value().applicationId().toString().equals(record.key())) {
+            throw new com.lps.kafka.reliability.InvalidKafkaRecordException("Kafka event key must equal applicationId");
+        }
         service.handleDecisionCompleted(record.value());
         // Log only after the database transaction has returned successfully.
         log.info("Saga completion event processed topic={}, applicationId={}, partition={}, offset={}",

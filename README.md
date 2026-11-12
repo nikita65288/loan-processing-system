@@ -43,15 +43,16 @@ Requires **JDK 17**, Docker Desktop in Linux-containers mode with **local Kubern
 
 1. **Start durable infrastructure** (do not remove volumes):
    ```powershell
-   Copy-Item .env.example .env
+   if (-not (Test-Path .env)) { Copy-Item .env.example .env }
    docker compose up -d postgres kafka redis
    docker compose ps
+   .\k8s\scripts\provision-dlt-topics.ps1
    ```
 2. **Build / test Java and Docker images:**
    ```powershell
    .\mvnw.cmd clean test
    .\mvnw.cmd -DskipTests package
-   .\docker\build-images.ps1 -Tag local-v1
+   .\docker\build-images.ps1 -Tag patch19.4-v1
    ```
 3. **Deploy to local Kubernetes** (the cluster context **must** be `docker-desktop`):
    ```powershell
@@ -85,15 +86,15 @@ Existing Kubernetes Secrets can be updated with `kubectl -n lps create secret ge
 - k6 + SQL reconciliation: `.\load-tests\run-and-report.ps1 -Scenario smoke` (requires running local cluster). See [load tests](load-tests/README.md).
 - Optional observability: Prometheus/Grafana/Jaeger; see [monitoring instructions](docs/architecture.md#operations-and-observability).
 
-In one measured local baseline run: **601/601** accepted applications reached completed Saga state (10 HTTP requests/s, HTTP p99 **47.6 ms**, Saga p99 **144 s**). Higher-load runs accumulated unprocessed Saga/Outbox backlog and remain **inconclusive** for end-to-end throughput. HTTP response latency is **not** Saga completion latency. Results, scope and caveats: [load-test summary](docs/performance.md).
+After **Performance Experiment №1** (10 applications/sec for 60 seconds): **601/601** Saga COMPLETED after backlog drain; HTTP p99 **229.13 ms**, Saga p99 **36.53 s**, observed drain **31.1 s**, reconciliation PASS. The only intentional optimization was Saga Outbox polling **1000 ms → 100 ms** in the Kubernetes manifest; a backlog still existed at the end of generation, so **sustainable 10 completed Saga/sec is not proven**. See [historical performance notes](docs/performance.md).
 
 ## Known limitations / planned reliability work
 
 - **Patch 19.1 (implemented and published):** `POST /applications` accepts optional `Idempotency-Key`. Repeating the same key/payload replays the original `201 Created` without a new application/Outbox; the same key with a changed payload yields `409`. Requests without a key remain **non-idempotent**.
-- Kafka poison-message isolation, **DLT and operator-controlled replay** are not implemented consistently across consumers; indefinite retries may stall a partition.
+- **Patch 19.4 (code prepared, verification pending):** typed Kafka listeners use `ErrorHandlingDeserializer`, explicit invalid-message classification and acknowledged `.DLT` publication; an opt-in Java CLI can inspect/replay one retained record. Transient/business failures retain retry semantics; no automatic replay. See [Kafka DLT runbook](docs/kafka-dlt-runbook.md). Until failure/restart/Kubernetes smoke tests pass, this is **not a verified guarantee**.
 - **Patch 19.2 (verified):** late matching Disbursement completion can safely resume a Saga after `DISBURSEMENT_UNKNOWN`, without duplicate payout or Notification.
-- **Patch 19.3 (implemented in source; verification pending):** a bounded durable read-only status inquiry requests the committed payout result over two Kafka topics. It never invokes payout execution; a verified COMPLETED applies the same guarded Saga transition as Patch 19.2. `NOT_FOUND` and `CONFLICT` keep the Saga in reconciliation. Simulated payouts must never be presented as exactly-once real bank transfers.
-- **FAILED Outbox recovery**, Kafka DLT/replay, backup/restore drills, end-to-end fault injection and recovery-time measurements need broader verification.
+- **Patch 19.3 (implemented, tested and published):** a bounded durable read-only status inquiry requests the committed payout result over two Kafka topics. It never invokes payout execution; a verified COMPLETED applies the same guarded Saga transition as Patch 19.2. `NOT_FOUND` and `CONFLICT` keep the Saga in reconciliation. Simulated payouts must never be presented as exactly-once real bank transfers.
+- **FAILED Outbox recovery**, DLT failure/replay verification, backup/restore drills, end-to-end fault injection and recovery-time measurements need broader verification.
 - Under load, the Saga/Outbox pipeline can lag behind accepted HTTP requests; end-to-end sustainable throughput and scaling improvements are work in progress.
 - Kubernetes runs locally on one node, with PostgreSQL/Kafka/Redis in Docker Compose: **not production high availability or disaster recovery**. Scoring, bureau, decision, disbursement and notification are simulated.
 

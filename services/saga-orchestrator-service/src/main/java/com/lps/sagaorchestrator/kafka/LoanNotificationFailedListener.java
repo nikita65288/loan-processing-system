@@ -14,8 +14,11 @@ public class LoanNotificationFailedListener {
             groupId=SagaKafkaConfiguration.CONSUMER_GROUP,containerFactory="notificationFailedListenerFactory")
     public void consume(ConsumerRecord<String,LoanNotificationFailedEvent> record) {
         if(record.value()==null || record.value().applicationId()==null
+                || record.value().eventId()==null || record.value().correlationId()==null
+                || record.value().eventType()==null || record.value().occurredAt()==null
+                || !"LoanNotificationFailed".equals(record.value().eventType())
                 || !record.value().applicationId().toString().equals(record.key()))
-            throw new IllegalArgumentException("Kafka key must be applicationId");
+            throw new com.lps.kafka.reliability.InvalidKafkaRecordException("Kafka key must be applicationId");
         orchestrator.handleFailure(record.value(),SagaStep.NOTIFICATION);
     }
 }

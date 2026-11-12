@@ -22,6 +22,13 @@ public class BureauCheckCompletedListener {
             containerFactory = "bureauCompletedListenerFactory"
     )
     public void consume(ConsumerRecord<String, BureauCheckCompletedEvent> record) {
+        if (record.value() == null || record.value().applicationId() == null
+                || record.value().eventId() == null || record.value().correlationId() == null
+                || record.value().eventType() == null || record.value().occurredAt() == null
+                || !"BureauCheckCompleted".equals(record.value().eventType())
+                || !record.value().applicationId().toString().equals(record.key())) {
+            throw new com.lps.kafka.reliability.InvalidKafkaRecordException("Kafka event key must equal applicationId");
+        }
         service.handleBureauCheckCompleted(record.value());
         // Log only after the database transaction has returned successfully.
         log.info("Saga completion event processed topic={}, applicationId={}, partition={}, offset={}",

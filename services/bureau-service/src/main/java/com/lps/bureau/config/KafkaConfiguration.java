@@ -23,7 +23,13 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Configuration
+@org.springframework.context.annotation.Import(com.lps.kafka.reliability.KafkaDltSupportConfiguration.class)
 public class KafkaConfiguration {
+    private final com.lps.kafka.reliability.KafkaDltSupport kafkaDltSupport;
+    public KafkaConfiguration(com.lps.kafka.reliability.KafkaDltSupport kafkaDltSupport) {
+        this.kafkaDltSupport = kafkaDltSupport;
+    }
+
     public static final String BUREAU_REQUESTED_TOPIC = "loan.bureau.check.requested";
     public static final String BUREAU_COMPLETED_TOPIC = "loan.bureau.check.completed";
     public static final String BUREAU_FAILED_TOPIC = "loan.bureau.check.failed";
@@ -59,8 +65,7 @@ public class KafkaConfiguration {
         properties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
         properties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         properties.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
-        JsonDeserializer<PerformBureauCheckCommand> deserializer = new JsonDeserializer<>(PerformBureauCheckCommand.class);
-        deserializer.addTrustedPackages("com.lps.contracts");
+        var deserializer = com.lps.kafka.reliability.KafkaDltSupport.valueDeserializer(PerformBureauCheckCommand.class);
         return new DefaultKafkaConsumerFactory<>(properties, new StringDeserializer(), deserializer);
     }
 
@@ -74,8 +79,7 @@ public class KafkaConfiguration {
         factory.getContainerProperties().setObservationEnabled(true);
         factory.setRecordInterceptor(new com.lps.bureau.observability.KafkaMdcInterceptor<>());
         // Do not acknowledge a command if its required result event was not published.
-        factory.setCommonErrorHandler(new DefaultErrorHandler(
-                new FixedBackOff(1000L, FixedBackOff.UNLIMITED_ATTEMPTS)));
+        factory.setCommonErrorHandler(kafkaDltSupport.newErrorHandler());
         return factory;
     }
 

@@ -12,8 +12,9 @@ public class DisburseLoanCommandListener {
     @KafkaListener(topics=LocalKafkaConfiguration.REQUESTED,containerFactory="commandListenerFactory")
     public void consume(ConsumerRecord<String,DisburseLoanCommand> record) {
         if (record.value()==null || record.value().applicationId()==null
+                || record.value().commandId() == null || record.value().correlationId() == null || record.value().occurredAt() == null || record.value().amount() == null || record.value().currency() == null || !"DisburseLoan".equals(record.value().commandType())
                 || !record.value().applicationId().toString().equals(record.key()))
-            throw new IllegalArgumentException("Command Kafka key must equal applicationId");
+            throw new com.lps.kafka.reliability.InvalidKafkaRecordException("Command Kafka key must equal applicationId");
         service.process(record.value());
     }
 }

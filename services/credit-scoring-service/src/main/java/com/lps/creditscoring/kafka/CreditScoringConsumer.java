@@ -45,6 +45,13 @@ public class CreditScoringConsumer {
             containerFactory = "kafkaListenerContainerFactory"
     )
     public void consume(ConsumerRecord<String, PerformCreditScoringCommand> record) {
+
+        if (record.value() == null || record.value().applicationId() == null
+                || record.value().commandId() == null || record.value().correlationId() == null
+                || record.value().occurredAt() == null || !"PerformCreditScoring".equals(record.value().commandType())
+                || !record.value().applicationId().toString().equals(record.key())) {
+            throw new com.lps.kafka.reliability.InvalidKafkaRecordException("Kafka command key must equal applicationId");
+        }
         PerformCreditScoringCommand command = record.value();
         log.info(
                 "Received PerformCreditScoringCommand commandId={}, applicationId={}, correlationId={}, key={}, partition={}, offset={}",

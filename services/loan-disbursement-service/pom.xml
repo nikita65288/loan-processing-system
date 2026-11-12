@@ -14,6 +14,10 @@
 
     <dependencies>
         <dependency>
+            <groupId>com.lps</groupId><artifactId>lps-kafka-reliability</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
             <groupId>com.lps</groupId>
             <artifactId>lps-contracts</artifactId>
             <version>${project.version}</version>

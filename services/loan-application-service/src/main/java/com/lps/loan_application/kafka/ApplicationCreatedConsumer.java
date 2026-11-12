@@ -33,6 +33,11 @@ public class ApplicationCreatedConsumer {
             ConsumerRecord<String, ApplicationCreatedEvent> record
     ) {
         ApplicationCreatedEvent event = record.value();
+        if (event == null || event.applicationId() == null || event.eventId() == null
+                || !"ApplicationCreated".equals(event.eventType())
+                || !event.applicationId().toString().equals(record.key())) {
+            throw new com.lps.kafka.reliability.InvalidKafkaRecordException("Invalid ApplicationCreated Kafka envelope");
+        }
 
         log.info(
                 "Consumed ApplicationCreatedEvent " +

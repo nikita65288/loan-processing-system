@@ -12,8 +12,9 @@ public class SendLoanDecisionNotificationListener {
     @KafkaListener(topics=LocalKafkaConfiguration.REQUESTED,containerFactory="commandListenerFactory")
     public void consume(ConsumerRecord<String,SendLoanDecisionNotificationCommand> record){
         if(record.value()==null || record.value().applicationId()==null
+                || record.value().commandId() == null || record.value().correlationId() == null || record.value().occurredAt() == null || record.value().finalDecision() == null || record.value().notificationType() == null || !"SendLoanDecisionNotification".equals(record.value().commandType())
                 || !record.value().applicationId().toString().equals(record.key()))
-            throw new IllegalArgumentException("Notification key must match applicationId");
+            throw new com.lps.kafka.reliability.InvalidKafkaRecordException("Notification key must match applicationId");
         service.process(record.value());
     }
 }

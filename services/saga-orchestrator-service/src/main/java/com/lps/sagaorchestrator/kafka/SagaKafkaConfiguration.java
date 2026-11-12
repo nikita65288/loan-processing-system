@@ -33,7 +33,13 @@ import java.util.Map;
 
 /** One consumer group and explicit JSON value types per topic; no producer type headers required. */
 @Configuration
+@org.springframework.context.annotation.Import(com.lps.kafka.reliability.KafkaDltSupportConfiguration.class)
 public class SagaKafkaConfiguration {
+    private final com.lps.kafka.reliability.KafkaDltSupport kafkaDltSupport;
+    public SagaKafkaConfiguration(com.lps.kafka.reliability.KafkaDltSupport kafkaDltSupport) {
+        this.kafkaDltSupport = kafkaDltSupport;
+    }
+
     public static final String APPLICATION_CREATED_TOPIC = "loan.application.created";
     public static final String SCORING_REQUESTED_TOPIC = "loan.scoring.requested";
     public static final String SCORING_COMPLETED_TOPIC = "loan.scoring.completed";
@@ -83,8 +89,7 @@ public class SagaKafkaConfiguration {
         properties.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
         properties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
 
-        JsonDeserializer<T> deserializer = new JsonDeserializer<>(type, false);
-        deserializer.addTrustedPackages("com.lps.contracts");
+        var deserializer = com.lps.kafka.reliability.KafkaDltSupport.valueDeserializer(type);
 
         return new DefaultKafkaConsumerFactory<>(properties, new StringDeserializer(), deserializer);
     }
@@ -101,8 +106,7 @@ public class SagaKafkaConfiguration {
         factory.getContainerProperties().setObservationEnabled(true);
         factory.setRecordInterceptor(new com.lps.sagaorchestrator.observability.KafkaMdcInterceptor<>());
         // Never recover/skip a failed DB transaction by committing the Kafka offset.
-        factory.setCommonErrorHandler(new DefaultErrorHandler(
-                new FixedBackOff(1000L, FixedBackOff.UNLIMITED_ATTEMPTS)));
+        factory.setCommonErrorHandler(kafkaDltSupport.newErrorHandler());
 
         return factory;
     }

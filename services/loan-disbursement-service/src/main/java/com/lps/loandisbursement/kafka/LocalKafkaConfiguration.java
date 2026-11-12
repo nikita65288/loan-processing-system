@@ -16,8 +16,14 @@ import java.util.*;
 
 /** Distinct consumer group and typed JSON; no implicit processing-error offset skipping. */
 @Configuration
+@org.springframework.context.annotation.Import(com.lps.kafka.reliability.KafkaDltSupportConfiguration.class)
 @EnableKafka
 public class LocalKafkaConfiguration {
+    private final com.lps.kafka.reliability.KafkaDltSupport kafkaDltSupport;
+    public LocalKafkaConfiguration(com.lps.kafka.reliability.KafkaDltSupport kafkaDltSupport) {
+        this.kafkaDltSupport = kafkaDltSupport;
+    }
+
     public static final String REQUESTED="loan.disbursement.requested";
     public static final String COMPLETED="loan.disbursement.completed";
     public static final String FAILED="loan.disbursement.failed";
@@ -36,15 +42,14 @@ public class LocalKafkaConfiguration {
         props.put(ConsumerConfig.GROUP_ID_CONFIG,"loan-disbursement-service-status-inquiry");
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,false);
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,"earliest");
-        var deserializer=new JsonDeserializer<>(com.lps.contracts.command.DisbursementStatusInquiryCommand.class,false);
-        deserializer.addTrustedPackages("com.lps.contracts");
+        var deserializer=com.lps.kafka.reliability.KafkaDltSupport.valueDeserializer(com.lps.contracts.command.DisbursementStatusInquiryCommand.class);
         var factory=new ConcurrentKafkaListenerContainerFactory<String,com.lps.contracts.command.DisbursementStatusInquiryCommand>();
         factory.setConsumerFactory(new DefaultKafkaConsumerFactory<>(props,new StringDeserializer(),deserializer));
         factory.setAutoStartup(enabled);
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.RECORD);
         factory.getContainerProperties().setObservationEnabled(true);
         factory.setRecordInterceptor(new com.lps.loandisbursement.observability.KafkaMdcInterceptor<>());
-        factory.setCommonErrorHandler(new DefaultErrorHandler(new FixedBackOff(1000L,FixedBackOff.UNLIMITED_ATTEMPTS)));
+        factory.setCommonErrorHandler(kafkaDltSupport.newErrorHandler());
         return factory;
     }
     @Bean
@@ -56,15 +61,14 @@ public class LocalKafkaConfiguration {
         props.put(ConsumerConfig.GROUP_ID_CONFIG,"loan-disbursement-service");
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,false);
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,"earliest");
-        var deserializer=new JsonDeserializer<>(com.lps.contracts.command.DisburseLoanCommand.class,false);
-        deserializer.addTrustedPackages("com.lps.contracts");
+        var deserializer=com.lps.kafka.reliability.KafkaDltSupport.valueDeserializer(com.lps.contracts.command.DisburseLoanCommand.class);
         var factory=new ConcurrentKafkaListenerContainerFactory<String,com.lps.contracts.command.DisburseLoanCommand>();
         factory.setConsumerFactory(new DefaultKafkaConsumerFactory<>(props,new StringDeserializer(),deserializer));
         factory.setAutoStartup(enabled);
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.RECORD);
         factory.getContainerProperties().setObservationEnabled(true);
         factory.setRecordInterceptor(new com.lps.loandisbursement.observability.KafkaMdcInterceptor<>());
-        factory.setCommonErrorHandler(new DefaultErrorHandler(new FixedBackOff(1000L,FixedBackOff.UNLIMITED_ATTEMPTS)));
+        factory.setCommonErrorHandler(kafkaDltSupport.newErrorHandler());
         return factory;
     }
     @Bean ProducerFactory<String,String> localProducerFactory(

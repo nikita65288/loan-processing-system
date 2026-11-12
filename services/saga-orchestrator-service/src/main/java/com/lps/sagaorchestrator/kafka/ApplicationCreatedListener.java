@@ -24,6 +24,13 @@ public class ApplicationCreatedListener {
             containerFactory = "sagaKafkaListenerContainerFactory"
     )
     public void consume(ConsumerRecord<String, ApplicationCreatedEvent> record) {
+        if (record.value() == null || record.value().applicationId() == null
+                || record.value().eventId() == null || record.value().correlationId() == null
+                || record.value().eventType() == null || record.value().occurredAt() == null
+                || !"ApplicationCreated".equals(record.value().eventType())
+                || !record.value().applicationId().toString().equals(record.key())) {
+            throw new com.lps.kafka.reliability.InvalidKafkaRecordException("Kafka event key must equal applicationId");
+        }
         ApplicationCreatedEvent event = record.value();
         service.initialize(event);
         log.info("Saga initialization processed applicationId={}, partition={}, offset={}",

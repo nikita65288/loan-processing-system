@@ -19,8 +19,9 @@ public class DisbursementStatusInquiryListener {
             containerFactory = "inquiryListenerFactory")
     public void consume(ConsumerRecord<String, DisbursementStatusInquiryCommand> record) {
         if (record.value() == null || record.value().applicationId() == null
+                || record.value().inquiryId() == null || record.value().disbursementCommandId() == null || record.value().correlationId() == null || record.value().occurredAt() == null || !"DisbursementStatusInquiry".equals(record.value().commandType())
                 || !record.value().applicationId().toString().equals(record.key()))
-            throw new IllegalArgumentException("Inquiry key must equal applicationId");
+            throw new com.lps.kafka.reliability.InvalidKafkaRecordException("Inquiry key must equal applicationId");
         inquiries.inspect(record.value());
     }
 }
