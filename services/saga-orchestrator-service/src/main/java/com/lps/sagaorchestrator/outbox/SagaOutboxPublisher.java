@@ -1,6 +1,7 @@
 package com.lps.sagaorchestrator.outbox;
 
 import io.opentelemetry.context.Scope;
+import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -44,6 +45,12 @@ public class SagaOutboxPublisher {
     private final long claimTimeoutSeconds;
     private final long publishTimeoutSeconds;
     private final MeterRegistry metrics;
+    private final Timer pollCycleDuration;
+    private final Timer staleClaimRecoveryDuration;
+    private final Timer claimBatchDuration;
+    private final Timer kafkaAcknowledgementDuration;
+    private final Timer databaseConfirmationDuration;
+    private final DistributionSummary claimedBatchSize;
 
     public SagaOutboxPublisher(
             SagaOutboxRepository repository,
@@ -63,6 +70,25 @@ public class SagaOutboxPublisher {
         }
         this.repository = repository;
         this.metrics = metrics;
+        // Fixed meter names and no per-application IDs: safe Prometheus cardinality.
+        this.pollCycleDuration = Timer.builder("lps.outbox.poll.cycle.duration")
+                .description("Saga Outbox polling cycle, including recovery, claim and publication")
+                .register(metrics);
+        this.staleClaimRecoveryDuration = Timer.builder("lps.outbox.stale.claim.scan.duration")
+                .description("Transaction time to release expired Saga Outbox claims")
+                .register(metrics);
+        this.claimBatchDuration = Timer.builder("lps.outbox.claim.batch.duration")
+                .description("Transaction time to claim a Saga Outbox batch")
+                .register(metrics);
+        this.kafkaAcknowledgementDuration = Timer.builder("lps.outbox.kafka.ack.duration")
+                .description("Kafka producer invocation and wait for acknowledgement (including failures)")
+                .register(metrics);
+        this.databaseConfirmationDuration = Timer.builder("lps.outbox.database.confirm.duration")
+                .description("Transaction time to confirm a Kafka-acknowledged Saga Outbox event")
+                .register(metrics);
+        this.claimedBatchSize = DistributionSummary.builder("lps.outbox.claim.batch.size")
+                .description("Number of Saga Outbox records claimed in each poll, including empty polls")
+                .register(metrics);
         this.attempts = attempts;
         this.clock = clock;
         this.producer = producer;
@@ -77,14 +103,28 @@ public class SagaOutboxPublisher {
 
     @Scheduled(fixedDelayString = "${lps.outbox.polling-interval-ms:1000}")
     public void publishPending() {
-        recoverStaleClaims();
-        claimBatch().forEach(this::publishOne);
+        long started = System.nanoTime();
+        try {
+            recoverStaleClaims();
+            List<SagaOutboxEvent> batch = claimBatch();
+            try { claimedBatchSize.record(batch.size()); }
+            catch (RuntimeException ignored) { /* Telemetry is best effort. */ }
+            batch.forEach(this::publishOne);
+        } finally {
+            recordDuration(pollCycleDuration, started);
+        }
     }
 
     private void recoverStaleClaims() {
         Instant threshold = Instant.now().minusSeconds(claimTimeoutSeconds);
-        Integer n = tx.execute(ignored -> repository.releaseStaleClaims(
-                SagaOutboxStatus.CLAIMED, SagaOutboxStatus.NEW, threshold));
+        long started = System.nanoTime();
+        Integer n;
+        try {
+            n = tx.execute(ignored -> repository.releaseStaleClaims(
+                    SagaOutboxStatus.CLAIMED, SagaOutboxStatus.NEW, threshold));
+        } finally {
+            recordDuration(staleClaimRecoveryDuration, started);
+        }
         if (n != null && n > 0) {
             log.warn("Recovered {} abandoned Saga Outbox claims", n);
             try { metrics.counter("lps.outbox.stale.claim.recovered").increment(n); } catch (RuntimeException ignored) { /* Telemetry is best effort. */ }
@@ -93,13 +133,19 @@ public class SagaOutboxPublisher {
 
     /** Claim in a short PostgreSQL transaction; another instance skips locked rows. */
     private List<SagaOutboxEvent> claimBatch() {
-        List<SagaOutboxEvent> events = tx.execute(ignored -> {
-            List<SagaOutboxEvent> records = repository.claimable(batchSize);
-            Instant now = Instant.now();
-            records.forEach(record -> record.markClaimed(now));
-            repository.saveAll(records);
-            return records;
-        });
+        long started = System.nanoTime();
+        List<SagaOutboxEvent> events;
+        try {
+            events = tx.execute(ignored -> {
+                List<SagaOutboxEvent> records = repository.claimable(batchSize);
+                Instant now = Instant.now();
+                records.forEach(record -> record.markClaimed(now));
+                repository.saveAll(records);
+                return records;
+            });
+        } finally {
+            recordDuration(claimBatchDuration, started);
+        }
         return events == null ? List.of() : events;
     }
 
@@ -135,20 +181,33 @@ public class SagaOutboxPublisher {
                 }
                 default -> throw new IllegalArgumentException("Unexpected Saga command type: " + record.getCommandType());
             };
-            future = producer.publish(record.getTopic(), command);
-            future.get(publishTimeoutSeconds, TimeUnit.SECONDS); // broker acknowledgement
-            Integer updated = tx.execute(x -> {
-                Instant confirmedAt = clock.instant();
-                int rows = repository.markPublishedIfOwned(
-                        record.getId(), SagaOutboxStatus.PUBLISHED, SagaOutboxStatus.CLAIMED,
-                        record.getClaimedAt(), confirmedAt);
-                if (rows == 1) {
-                    // Older Outbox records may have no attempt metadata.
-                    attempts.findByOutboxEventId(record.getId())
-                            .ifPresent(attempt -> attempt.markPublished(confirmedAt));
-                }
-                return rows;
-            });
+            // The Kafka timer includes producer invocation plus the blocking acknowledgement wait.
+            long kafkaStarted = System.nanoTime();
+            try {
+                future = producer.publish(record.getTopic(), command);
+                future.get(publishTimeoutSeconds, TimeUnit.SECONDS); // broker acknowledgement
+            } finally {
+                recordDuration(kafkaAcknowledgementDuration, kafkaStarted);
+            }
+            // Includes connection acquisition, SQL and transaction commit; no DB lock during Kafka IO.
+            long confirmationStarted = System.nanoTime();
+            Integer updated;
+            try {
+                updated = tx.execute(x -> {
+                    Instant confirmedAt = clock.instant();
+                    int rows = repository.markPublishedIfOwned(
+                            record.getId(), SagaOutboxStatus.PUBLISHED, SagaOutboxStatus.CLAIMED,
+                            record.getClaimedAt(), confirmedAt);
+                    if (rows == 1) {
+                        // Preserve the attempt timeout policy without loading its full JPA entity.
+                        // Legacy/inquiry Outbox records may not have a SagaStepAttempt row.
+                        attempts.markPublishedIfUnpublished(record.getId(), confirmedAt);
+                    }
+                    return rows;
+                });
+            } finally {
+                recordDuration(databaseConfirmationDuration, confirmationStarted);
+            }
             if (updated == null || updated != 1) {
                 log.warn("Kafka accepted command but claim ownership changed commandId={}", record.getId());
             } else {
@@ -175,6 +234,12 @@ public class SagaOutboxPublisher {
             try { timer.stop(metrics.timer("lps.outbox.publication.duration")); }
             catch (RuntimeException ignored) { /* Telemetry is best effort. */ }
         }
+    }
+
+    /** Records timing even on exceptions without letting telemetry change publishing behavior. */
+    private void recordDuration(Timer timer, long startedNanos) {
+        try { timer.record(System.nanoTime() - startedNanos, TimeUnit.NANOSECONDS); }
+        catch (RuntimeException ignored) { /* Telemetry is best effort. */ }
     }
 
     private void requireTopic(SagaOutboxEvent record, String expectedTopic) {

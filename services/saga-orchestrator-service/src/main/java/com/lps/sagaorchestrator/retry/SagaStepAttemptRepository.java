@@ -2,6 +2,7 @@ package com.lps.sagaorchestrator.retry;
 
 import com.lps.sagaorchestrator.saga.SagaStep;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -14,6 +15,29 @@ import java.util.UUID;
 public interface SagaStepAttemptRepository extends JpaRepository<SagaStepAttempt, UUID> {
     Optional<SagaStepAttempt> findFirstBySagaIdAndStepOrderByAttemptNumberDesc(UUID sagaId, SagaStep step);
     Optional<SagaStepAttempt> findByOutboxEventId(UUID outboxEventId);
+
+    /**
+     * Activates the attempt deadline only after owned Outbox confirmation.
+     * Preserves original timeout/backoff policy and prevents repeated updates.
+     */
+    @Modifying
+    @Query(value = """
+        UPDATE saga_orchestrator.saga_step_attempts
+        SET published_at = :confirmedAt,
+            deadline_at =
+                CAST(:confirmedAt AS timestamp with time zone)
+                + timeout_seconds * INTERVAL '1 second',
+            retry_after_at =
+                CAST(:confirmedAt AS timestamp with time zone)
+                + timeout_seconds * INTERVAL '1 second'
+                + backoff_seconds * INTERVAL '1 second'
+        WHERE outbox_event_id = :outboxEventId
+          AND published_at IS NULL
+        """, nativeQuery = true)
+    int markPublishedIfUnpublished(
+            @Param("outboxEventId") UUID outboxEventId,
+            @Param("confirmedAt") Instant confirmedAt
+    );
 
     @Query(value = """
             SELECT a.saga_id
